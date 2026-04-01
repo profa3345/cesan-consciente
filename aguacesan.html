@@ -406,9 +406,9 @@ body.large-font .form-input,.large-font .quiz-option,.large-font .feed-title,.la
     </div>
   </div>
   <div class="sidebar-user">
-    <div class="user-avatar" aria-hidden="true">CL</div>
+    <div class="user-avatar" aria-hidden="true" id="sb-avatar">?</div>
     <div>
-      <div class="user-name">Carlos Lima</div>
+      <div class="user-name" id="sb-name">Carregando...</div>
       <div class="user-pts" id="sb-pts">⭐ 1.240 pontos</div>
     </div>
   </div>
@@ -498,7 +498,7 @@ body.large-font .form-input,.large-font .quiz-option,.large-font .feed-title,.la
           <img src="PLACEHOLDER_AGUA_WHITE" alt="Água CESAN" class="banner-logo" style="height:52px">
           <span class="banner-tag">Plataforma Oficial</span>
         </div>
-        <h2>Bem-vindo, Carlos! 👋</h2>
+        <h2>Bem-vindo, <span id="banner-name">...</span>! 👋</h2>
         <p>Você está no nível <strong>Guardião da Água</strong> · Promovendo o uso consciente da água em Vitória</p>
         <div class="banner-actions">
           <button class="btn-glass" onclick="navigate('rotalimpa',document.getElementById('nav-rotalimpa'))">
@@ -827,7 +827,7 @@ body.large-font .form-input,.large-font .quiz-option,.large-font .feed-title,.la
             <div class="idea-title">QR Code nas tampas de bueiros para denúncias</div>
             <p class="idea-desc">Cada tampão de bueiro teria um QR Code único. Ao escanear, o cidadão registra o problema diretamente naquele ponto.</p>
             <div class="idea-meta">
-              <div class="idea-author"><div class="idea-author-av" aria-hidden="true">CL</div>Carlos Lima (você)</div>
+              <div class="idea-author"><div class="idea-author-av" aria-hidden="true" id="hub-avatar">?</div><span id="hub-name">Você</span></div>
               <div class="idea-vote">
                 <button class="vote-btn voted" onclick="toggleVote(this)"><span class="vote-arrow">▲</span><span>312</span></button>
                 <button class="vote-btn" onclick="showToast('💬 Comentários em breve','info')">💬 57</button>
@@ -873,7 +873,7 @@ body.large-font .form-input,.large-font .quiz-option,.large-font .feed-title,.la
           <div class="podium-place p1"><div class="podium-avatar" style="width:58px;height:58px" aria-hidden="true">👩</div><div class="podium-name">Ana Paula F.</div><div class="podium-pts">1.240 pts</div><div class="podium-block">1°</div></div>
           <div class="podium-place p3"><div class="podium-avatar" style="width:44px;height:44px" aria-hidden="true">👩</div><div class="podium-name">Luciana S.</div><div class="podium-pts">760 pts</div><div class="podium-block">3°</div></div>
         </div>
-        <div class="rank-row me" aria-label="Sua posição: 4°"><div class="rank-pos" style="color:var(--primary)">4°</div><div class="rank-av" aria-hidden="true">😊</div><div class="rank-info"><div class="rank-name">Carlos Lima (você)</div><div class="rank-sub">12 denúncias · 24 missões · HydroHero F7</div></div><div class="rank-pts">1.240</div></div>
+        <div class="rank-row me" aria-label="Sua posição: 4°"><div class="rank-pos" style="color:var(--primary)">4°</div><div class="rank-av" aria-hidden="true">😊</div><div class="rank-info"><div class="rank-name" id="rank-you-name">Você</div><div class="rank-sub">12 denúncias · 24 missões · HydroHero F7</div></div><div class="rank-pts">1.240</div></div>
         <div class="rank-row"><div class="rank-pos">5°</div><div class="rank-av" aria-hidden="true">👦</div><div class="rank-info"><div class="rank-name">Márcio Oliveira</div><div class="rank-sub">10 denúncias · 18 missões</div></div><div class="rank-pts">390</div></div>
         <div class="rank-row"><div class="rank-pos">6°</div><div class="rank-av" aria-hidden="true">👧</div><div class="rank-info"><div class="rank-name">Fernanda Alves</div><div class="rank-sub">8 denúncias · 15 missões</div></div><div class="rank-pts">320</div></div>
       </div>
@@ -1005,9 +1005,9 @@ body.large-font .form-input,.large-font .quiz-option,.large-font .feed-title,.la
     <!-- ═══════════ PERFIL ═══════════ -->
     <div id="page-perfil" class="page" role="region" aria-label="Meu Perfil">
       <div class="profile-hero">
-        <div class="profile-av" aria-hidden="true">CL</div>
+        <div class="profile-av" aria-hidden="true" id="profile-av">?</div>
         <div>
-          <div class="profile-name">Carlos Lima</div>
+          <div class="profile-name" id="profile-name">Carregando...</div>
           <div class="profile-since">Membro desde janeiro de 2024 · Vitória/ES</div>
           <div class="profile-badges-row">
             <span class="p-badge">💧 Guardião da Água</span>
@@ -1021,7 +1021,7 @@ body.large-font .form-input,.large-font .quiz-option,.large-font .feed-title,.la
         <div>
           <div class="card" style="margin-bottom:15px">
             <div class="card-title">Dados pessoais</div>
-            <div class="form-group"><label class="form-label" for="p-nome">Nome completo</label><input id="p-nome" class="form-input" value="Carlos Lima" type="text" aria-label="Nome completo" autocomplete="name"></div>
+            <div class="form-group"><label class="form-label" for="p-nome">Nome completo</label><input id="p-nome" class="form-input" value="" type="text" aria-label="Nome completo" autocomplete="name"></div>
             <div class="form-group"><label class="form-label" for="p-email">E-mail</label><input id="p-email" class="form-input" value="carlos.lima@email.com" type="email" aria-label="E-mail" autocomplete="email"></div>
             <div class="form-group"><label class="form-label" for="p-bairro">Bairro</label><input id="p-bairro" class="form-input" value="Centro – Vitória/ES" type="text" aria-label="Bairro"></div>
             <div class="form-group"><label class="form-label" for="p-cpf">CPF / Conta CESAN</label><input id="p-cpf" class="form-input" value="•••.•••.•••-42" type="text" aria-label="CPF" autocomplete="off"></div>
@@ -2076,14 +2076,44 @@ function doLoginEmail() {
 
 function updateUserUI(user) {
   if (!user) return;
-  const name = user.displayName || user.email?.split('@')[0] || 'Usuário';
+  const name     = user.displayName || user.email?.split('@')[0] || 'Usuário';
+  const firstName = name.split(' ')[0];
   const initials = name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
-  document.querySelector('.user-name').textContent = name;
-  document.querySelector('.user-avatar').textContent = initials;
-  document.querySelector('.profile-av').textContent = initials;
-  document.querySelector('.profile-name').textContent = name;
-  document.getElementById('p-email').value = user.email || '';
-  document.getElementById('p-nome').value = name;
+
+  // Sidebar
+  const sbName   = document.getElementById('sb-name');
+  const sbAvatar = document.getElementById('sb-avatar');
+  if (sbName)   sbName.textContent   = name;
+  if (sbAvatar) sbAvatar.textContent = initials;
+
+  // Banner dashboard
+  const bannerName = document.getElementById('banner-name');
+  if (bannerName) bannerName.textContent = firstName;
+
+  // Perfil
+  const profileAv   = document.getElementById('profile-av');
+  const profileName = document.getElementById('profile-name');
+  if (profileAv)   profileAv.textContent   = initials;
+  if (profileName) profileName.textContent = name;
+
+  // Hub de inovação
+  const hubAvatar = document.getElementById('hub-avatar');
+  const hubName   = document.getElementById('hub-name');
+  if (hubAvatar) hubAvatar.textContent = initials;
+  if (hubName)   hubName.textContent   = name + ' (você)';
+
+  // Ranking
+  const rankYou = document.getElementById('rank-you-name');
+  if (rankYou) rankYou.textContent = firstName + ' (você)';
+
+  // Topbar pontos
+  const topbarPts = document.getElementById('topbar-pts');
+
+  // Inputs do perfil
+  const pNome  = document.getElementById('p-nome');
+  const pEmail = document.getElementById('p-email');
+  if (pNome && !pNome.value)   pNome.value  = name;
+  if (pEmail && !pEmail.value) pEmail.value = user.email || '';
 }
 
 function saveUserToFirestore(user) {
