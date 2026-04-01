@@ -1250,56 +1250,87 @@ const firebaseConfig = {
 };
 let db = null, auth = null, storage = null, analytics = null;
 let _consentGiven = localStorage.getItem('lgpd_consent') === '1';
+// ── Detectar ambiente de execução ──
+const _isFileProtocol = location.protocol === 'file:';
+const _isLocalhost    = ['localhost','127.0.0.1','0.0.0.0'].includes(location.hostname);
+const _isHTTPS        = location.protocol === 'https:';
+const _ambienteOk     = !_isFileProtocol; // qualquer protocolo exceto file://
+
+if (_isFileProtocol) {
+  console.warn('[CESAN] ⚠️ Arquivo aberto como file:// — Firebase Auth desativado.');
+  console.warn('[CESAN] 👉 Use um servidor local: npx serve . ou python3 -m http.server 3000');
+}
+
 try {
   // Evitar dupla inicialização
   if (firebase.apps.length === 0) {
     firebase.initializeApp(firebaseConfig);
     console.log('[CESAN] 🔥 Firebase inicializado — projeto:', firebaseConfig.projectId);
   } else {
-    console.log('[CESAN] 🔥 Firebase já estava inicializado — reutilizando');
+    console.log('[CESAN] 🔥 Firebase reutilizando instância existente');
   }
 
-  db      = firebase.firestore();
-  auth    = firebase.auth();
-  console.log('[CESAN] ✅ Firestore instanciado');
-  console.log('[CESAN] ✅ Auth instanciado');
+  // Firestore funciona em qualquer ambiente
+  // Tentar banco nomeado primeiro, fallback para default
+  try {
+    // SDK compat: tenta banco 'cesan-consciente' via settings
+    db = firebase.firestore();
+    db.settings({ databaseId: 'cesan-consciente' });
+    console.log('[CESAN] ✅ Firestore instanciado → banco: cesan-consciente');
+  } catch(edb) {
+    db = firebase.firestore();
+    console.log('[CESAN] ✅ Firestore instanciado → banco: (default)');
+  }
 
+  // Auth só funciona em http:// ou https://
+  if (_ambienteOk) {
+    auth = firebase.auth();
+    console.log('[CESAN] ✅ Auth instanciado (' + location.protocol + ')');
+  } else {
+    auth = null;
+    console.warn('[CESAN] ⚠️ Auth desativado — abra via http:// para habilitar login');
+  }
+
+  // Storage
   try {
     storage = firebase.storage();
     console.log('[CESAN] ✅ Storage instanciado');
   } catch(es) {
     storage = null;
-    console.warn('[CESAN] ⚠️ Storage não disponível:', es.message);
+    console.warn('[CESAN] ⚠️ Storage indisponível:', es.message);
   }
 
-  // Analytics — só inicializa se consentiu (LGPD)
-  if (typeof firebase.analytics === 'function' && _consentGiven) {
-    analytics = firebase.analytics();
-    console.log('[CESAN] ✅ Analytics ativo');
+  // Analytics — só com HTTPS e consentimento
+  if (_isHTTPS && typeof firebase.analytics === 'function' && _consentGiven) {
+    try {
+      analytics = firebase.analytics();
+      console.log('[CESAN] ✅ Analytics ativo');
+    } catch(ea) {
+      console.warn('[CESAN] Analytics não iniciou:', ea.message);
+    }
   }
 
   // Persistência offline
   db.enablePersistence({ synchronizeTabs: true })
     .then(() => console.log('[CESAN] ✅ Persistência offline ativa'))
     .catch(err => {
-      if (err.code === 'failed-precondition') console.warn('[CESAN] Persistência: feche outras abas do app');
-      if (err.code === 'unimplemented')       console.warn('[CESAN] Persistência offline não suportada neste browser');
+      if (err.code === 'failed-precondition') console.warn('[CESAN] Persistência: feche outras abas');
+      if (err.code === 'unimplemented')       console.warn('[CESAN] Persistência não suportada neste browser');
     });
 
-  // Teste rápido de conectividade Firestore
+  // Ping de conectividade
   db.collection('_ping').limit(1).get()
-    .then(() => console.log('[CESAN] ✅ Firestore acessível — leitura de teste OK'))
+    .then(() => console.log('[CESAN] ✅ Firestore conectado e acessível'))
     .catch(e  => {
       if (e.code === 'permission-denied') {
-        console.warn('[CESAN] ⚠️ Firestore conectado mas Security Rules negam acesso.');
-        console.warn('[CESAN] 👉 Acesse o console Firebase → Firestore → Regras e configure as permissões.');
+        console.warn('[CESAN] ⚠️ Security Rules bloqueando — configure no console Firebase → Firestore → Regras');
       } else {
-        console.error('[CESAN] ❌ Firestore inacessível:', e.code, e.message);
+        console.error('[CESAN] ❌ Firestore erro:', e.code, e.message);
       }
     });
 
 } catch(e) {
-  console.error('[CESAN] ❌ Erro de inicialização Firebase:', e.message);
+  console.error('[CESAN] ❌ Erro de inicialização:', e.message);
   showToast('❌ Firebase não inicializado: ' + e.message, 'error');
 }
 
@@ -1914,7 +1945,7 @@ function compartilharOcorrencia() {
     name: 'Água Consciente – CESAN',
     short_name: 'Água CESAN',
     description: 'Plataforma de uso consciente da água em Vitória/ES',
-    start_url: './',
+    start_url: window.location.origin + '/',
     display: 'standalone',
     background_color: '#f8fafc',
     theme_color: '#0369a1',
@@ -1956,7 +1987,10 @@ function doLogout() {
 }
 
 function doLoginGoogle() {
-  if (!auth) { showToast('Firebase não configurado','error'); return; }
+  if (!auth) {
+    showToast('❌ Login indisponível — abra via http:// (use: npx serve .)','error');
+    return;
+  }
   const provider = new firebase.auth.GoogleAuthProvider();
   const btn = document.getElementById('btn-google-login');
   btn.disabled = true;
@@ -1981,7 +2015,10 @@ function doLoginEmail() {
   const email = document.getElementById('auth-email')?.value?.trim();
   const pass  = document.getElementById('auth-pass')?.value;
   if (!email || !pass) { showToast('Preencha e-mail e senha','warning'); return; }
-  if (!auth) { showToast('Firebase não configurado','error'); return; }
+  if (!auth) {
+    showToast('❌ Login indisponível — abra via http:// (use: npx serve .)','error');
+    return;
+  }
   const btn = document.getElementById('btn-email-login');
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner"></div> Entrando...';
@@ -2056,9 +2093,24 @@ function saveUserToFirestore(user) {
 }
 
 // Listener de estado de autenticação
-// Flag para evitar flash: aguarda Firebase resolver antes de mostrar modal
+// Flag para evitar flash
 let _authResolved = false;
-if (auth) {
+
+function initAuthListener() {
+  if (!auth) {
+    // Auth indisponível (file:// ou erro) — mostrar aviso no modal
+    _authResolved = true;
+    const modal = document.getElementById('user-auth-modal');
+    // Adicionar aviso de ambiente ao modal
+    const warn = document.createElement('div');
+    warn.style.cssText = 'background:#fef3c7;border:1.5px solid #fde68a;border-radius:9px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#92400e;text-align:left';
+    warn.innerHTML = '⚠️ <strong>Abra via servidor HTTP</strong> para habilitar o login.<br>Execute no terminal: <code style="background:#fff;padding:1px 5px;border-radius:4px">npx serve .</code> e acesse <strong>http://localhost:3000</strong>';
+    const firstChild = modal.querySelector('.modal > *');
+    if (firstChild) modal.querySelector('.modal').insertBefore(warn, firstChild);
+    modal.classList.add('open');
+    return;
+  }
+
   auth.onAuthStateChanged(user => {
     _authResolved = true;
     if (user) {
@@ -2066,15 +2118,22 @@ if (auth) {
       loadUserPoints(user.uid);
       document.getElementById('user-auth-modal').classList.remove('open');
     } else {
-      // Só abre o modal após Firebase confirmar que não há sessão
       document.getElementById('user-auth-modal').classList.add('open');
     }
   });
-  // Safety: se Firebase demorar >4s, mostrar modal de qualquer forma
+
+  // Safety timeout: 4s
   setTimeout(() => {
     if (!_authResolved)
       document.getElementById('user-auth-modal').classList.add('open');
   }, 4000);
+}
+
+// Iniciar listener após DOM estar pronto
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAuthListener);
+} else {
+  initAuthListener();
 }
 
 function loadUserPoints(uid) {
