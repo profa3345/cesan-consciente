@@ -1553,6 +1553,136 @@ function render(){
   ctx.fillStyle='rgba(220,220,220,.1)';ctx.fillRect(0,gndY,GC.width,2*s);
   for(let rx=0;rx<GC.width;rx+=90*s){ctx.fillStyle='rgba(255,255,255,.06)';ctx.fillRect(rx,gndY+16*s,44*s,4*s);}
 
+
+  // ===== HYDROHERO 16 — CENÁRIO REAL POR FASE =====
+  if((G.phase||1)===2){
+    // FASE 2: ESCOLA + COMUNIDADE — cobre o skyline da fase 1.
+    const pg=ctx.createLinearGradient(0,0,0,gndY);
+    pg.addColorStop(0,'#3c2d72');
+    pg.addColorStop(.48,'#8c67bb');
+    pg.addColorStop(1,'#f0b36f');
+    ctx.fillStyle=pg;ctx.fillRect(0,0,GC.width,gndY);
+
+    // sol de fim de tarde
+    const sx=GC.width*.78, sy=GC.height*.14;
+    const sgg=ctx.createRadialGradient(sx,sy,4,sx,sy,72*s);
+    sgg.addColorStop(0,'rgba(255,244,175,.95)');
+    sgg.addColorStop(.3,'rgba(255,195,95,.42)');
+    sgg.addColorStop(1,'rgba(255,180,80,0)');
+    ctx.fillStyle=sgg;ctx.beginPath();ctx.arc(sx,sy,72*s,0,Math.PI*2);ctx.fill();
+
+    // escola principal
+    const ex=wx(420), ey=gndY-235*s, ew=650*s, eh=210*s;
+    ctx.fillStyle='#e6b752';ctx.fillRect(ex,ey,ew,eh);
+    ctx.fillStyle='#174f88';ctx.fillRect(ex-8*s,ey-20*s,ew+16*s,22*s);
+    ctx.fillStyle='#fff';
+    ctx.font=`${Math.round(18*s)}px Bangers`;
+    ctx.textAlign='center';
+    ctx.fillText('ESCOLA CONSCIENTE',ex+ew/2,ey-3*s);
+
+    // janelas da escola
+    for(let rr=0;rr<2;rr++)for(let cc=0;cc<8;cc++){
+      const xx=ex+28*s+cc*76*s, yy=ey+34*s+rr*72*s;
+      ctx.fillStyle='#bde6f6';ctx.fillRect(xx,yy,42*s,40*s);
+      ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillRect(xx,yy,42*s,4*s);
+    }
+    // entrada
+    ctx.fillStyle='#26465f';ctx.fillRect(ex+ew*.46,ey+eh-82*s,64*s,82*s);
+
+    // quadra esportiva visível
+    const qx=wx(1320), qy=gndY-92*s, qw=570*s, qh=92*s;
+    ctx.fillStyle='#4e8e72';ctx.fillRect(qx,qy,qw,qh);
+    ctx.strokeStyle='rgba(255,255,255,.82)';ctx.lineWidth=2*s;
+    ctx.strokeRect(qx+5*s,qy+5*s,qw-10*s,qh-10*s);
+    ctx.beginPath();ctx.moveTo(qx+qw/2,qy+5*s);ctx.lineTo(qx+qw/2,qy+qh-5*s);ctx.stroke();
+    ctx.beginPath();ctx.arc(qx+qw/2,qy+qh/2,22*s,0,Math.PI*2);ctx.stroke();
+
+    // bebedouro escolar
+    const bx=wx(2020), by=gndY-72*s;
+    ctx.fillStyle='#758d9a';ctx.fillRect(bx,by,62*s,72*s);
+    ctx.fillStyle='#c9d8de';ctx.fillRect(bx+7*s,by+10*s,48*s,15*s);
+    ctx.fillStyle='#43dcff';ctx.beginPath();ctx.arc(bx+31*s,by+7*s,5*s,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#071521';ctx.font=`${Math.round(9*s)}px Nunito`;ctx.textAlign='center';
+    ctx.fillText('BEBEDOURO',bx+31*s,by+45*s);
+
+    // praça e comunidade
+    for(const tx of [2450,2780,3150,3500]){
+      const px=wx(tx);
+      ctx.fillStyle='#71492d';ctx.fillRect(px,gndY-72*s,13*s,72*s);
+      ctx.fillStyle='#3e9858';ctx.beginPath();ctx.arc(px+6*s,gndY-92*s,37*s,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#55aa66';ctx.beginPath();ctx.arc(px-18*s,gndY-80*s,25*s,0,Math.PI*2);ctx.fill();
+    }
+    // bancos da praça
+    [2600,3300].forEach(tx=>{
+      const px=wx(tx);
+      ctx.fillStyle='#75533b';ctx.fillRect(px,gndY-30*s,72*s,10*s);
+      ctx.fillRect(px+8*s,gndY-20*s,8*s,20*s);ctx.fillRect(px+56*s,gndY-20*s,8*s,20*s);
+    });
+
+    // chão do pátio
+    const gg=ctx.createLinearGradient(0,gndY,0,GC.height);
+    gg.addColorStop(0,'#55485d');gg.addColorStop(1,'#302b3c');
+    ctx.fillStyle=gg;ctx.fillRect(0,gndY,GC.width,GC.height-gndY);
+    ctx.fillStyle='rgba(255,255,255,.14)';ctx.fillRect(0,gndY,GC.width,2*s);
+
+  } else if((G.phase||1)===3){
+    // FASE 3: NATUREZA + MANANCIAL
+    const ng=ctx.createLinearGradient(0,0,0,gndY);
+    ng.addColorStop(0,'#063f50');ng.addColorStop(.5,'#168276');ng.addColorStop(1,'#9ad8a7');
+    ctx.fillStyle=ng;ctx.fillRect(0,0,GC.width,gndY);
+
+    // montanhas ao fundo
+    ctx.fillStyle='rgba(18,73,68,.55)';
+    for(let i=-1;i<7;i++){
+      const mx=i*310*s-(G.cam*.08%(310*s));
+      ctx.beginPath();ctx.moveTo(mx,gndY-70*s);ctx.lineTo(mx+145*s,gndY-300*s-(i%2)*45*s);ctx.lineTo(mx+310*s,gndY-70*s);ctx.closePath();ctx.fill();
+    }
+    ctx.fillStyle='rgba(38,112,76,.45)';
+    for(let i=-1;i<8;i++){
+      const mx=i*245*s-(G.cam*.15%(245*s));
+      ctx.beginPath();ctx.moveTo(mx,gndY-40*s);ctx.lineTo(mx+115*s,gndY-210*s);ctx.lineTo(mx+245*s,gndY-40*s);ctx.closePath();ctx.fill();
+    }
+
+    // floresta
+    for(const tx of [180,520,900,1280,1660,2070,2480,2920,3350,3780,4100]){
+      const px=wx(tx), ht=(100+(tx%5)*13)*s;
+      ctx.fillStyle='#5b3b26';ctx.fillRect(px,gndY-ht,14*s,ht);
+      ctx.fillStyle='#1e7046';ctx.beginPath();ctx.arc(px+7*s,gndY-ht-28*s,42*s,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#318d56';ctx.beginPath();ctx.arc(px-20*s,gndY-ht-5*s,28*s,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(px+33*s,gndY-ht-7*s,31*s,0,Math.PI*2);ctx.fill();
+    }
+
+    // rio/manancial atravessando a fase
+    const rg=ctx.createLinearGradient(0,gndY-54*s,0,gndY+3*s);
+    rg.addColorStop(0,'#75e0df');rg.addColorStop(.48,'#2eabc1');rg.addColorStop(1,'#17658b');
+    ctx.fillStyle=rg;ctx.fillRect(0,gndY-48*s,GC.width,48*s);
+    ctx.strokeStyle='rgba(230,255,255,.55)';ctx.lineWidth=1.5*s;
+    for(let ri=0;ri<8;ri++){
+      const yy=gndY-(7+ri*5)*s;
+      ctx.beginPath();
+      for(let xx=0;xx<GC.width;xx+=42*s){
+        const wave=yy+Math.sin(performance.now()*.002+xx*.018+ri)*1.7*s;
+        if(xx===0)ctx.moveTo(xx,wave);else ctx.lineTo(xx,wave);
+      }
+      ctx.stroke();
+    }
+
+    // pedras e placas de preservação
+    [720,1480,2260,3060,3880].forEach(tx=>{
+      const px=wx(tx);ctx.fillStyle='#657873';ctx.beginPath();ctx.ellipse(px,gndY-8*s,32*s,17*s,-.2,0,Math.PI*2);ctx.fill();
+    });
+    const px=wx(1880);
+    ctx.fillStyle='#6b4d2e';ctx.fillRect(px,gndY-95*s,10*s,95*s);
+    ctx.fillStyle='#e9f4d4';ctx.fillRect(px-48*s,gndY-102*s,108*s,45*s);
+    ctx.fillStyle='#174d38';ctx.font=`${Math.round(10*s)}px Bangers`;ctx.textAlign='center';
+    ctx.fillText('PROTEJA O',px+6*s,gndY-84*s);ctx.fillText('MANANCIAL',px+6*s,gndY-69*s);
+
+    const gg=ctx.createLinearGradient(0,gndY,0,GC.height);
+    gg.addColorStop(0,'#33533b');gg.addColorStop(1,'#1d3527');
+    ctx.fillStyle=gg;ctx.fillRect(0,gndY,GC.width,GC.height-gndY);
+    ctx.fillStyle='rgba(190,255,205,.15)';ctx.fillRect(0,gndY,GC.width,2*s);
+  }
+
   // PLATFORMS
   platforms.slice(1).forEach(p=>{
     const px2=wx(p.x),py2=wy(p.y),pw2=p.w*s,ph2=p.h*s;
@@ -4079,6 +4209,171 @@ if(document.readyState==='loading'){
 }
 
 window.HydroHeroStartPhase=hh15StartPhase;
+})();
+</script>
+
+
+<script>
+/* ===== HYDROHERO 16 — FASES REALMENTE DIFERENTES ===== */
+(function(){
+'use strict';
+
+const HH16Q={
+  1:[
+    ['BANHEIRO','Ao escovar os dentes, qual atitude economiza água?',['Fechar a torneira enquanto escova','Deixar a torneira aberta','Usar a vazão máxima'],0],
+    ['COZINHA','Ao ensaboar a louça, o que é mais consciente?',['Fechar a torneira e abrir só para enxaguar','Deixar a água correndo','Encher a pia várias vezes'],0],
+    ['CASA','Uma torneira fica pingando por vários dias. O que fazer?',['Providenciar o conserto','Ignorar','Abrir ainda mais'],0],
+    ['BANHO','Durante o banho, uma boa atitude é:',['Reduzir o tempo e fechar o chuveiro ao se ensaboar','Ficar mais tempo sob a água','Deixar o chuveiro aberto antes de entrar'],0],
+    ['LAVANDERIA','Como usar melhor a máquina de lavar?',['Aproveitar bem a capacidade antes de iniciar um ciclo','Lavar poucas peças várias vezes','Sempre usar o ciclo mais longo'],0]
+  ],
+  2:[
+    ['BEBEDOURO','No recreio, você percebe o bebedouro da escola vazando. O que fazer?',['Avisar imediatamente um responsável da escola','Ignorar porque é um espaço público','Brincar com a água'],0],
+    ['QUADRA','Depois de uma atividade esportiva, qual atitude evita desperdício?',['Usar somente a água necessária para hidratação e higiene','Deixar chuveiros abertos','Usar mangueira para brincar'],0],
+    ['JARDIM ESCOLAR','Qual é o melhor momento para regar o jardim da escola?',['Em horários mais frescos','Ao meio-dia com sol forte','Sempre durante a chuva'],0],
+    ['BANHEIRO DA ESCOLA','Uma descarga não para de correr. Qual deve ser a atitude?',['Avisar professor, funcionário ou manutenção','Acionar várias vezes','Ignorar'],0],
+    ['PÁTIO','Como limpar o pátio de maneira mais consciente?',['Varrer primeiro e usar água somente quando necessário','Usar mangueira continuamente','Jogar baldes de água sem varrer'],0],
+    ['PRAÇA','A irrigação da praça está ligada enquanto chove. O que fazer?',['Comunicar o responsável pelo espaço','Deixar porque a água é pública','Ligar mais irrigadores'],0],
+    ['COMUNIDADE','Qual atitude ajuda a comunidade a economizar água?',['Comunicar vazamentos e incentivar bons hábitos','Esperar que outra pessoa resolva tudo','Ignorar perdas em áreas comuns'],0],
+    ['CONDOMÍNIO','O consumo do condomínio aumentou muito sem explicação. O que é adequado?',['Investigar possíveis vazamentos e mudanças no consumo','Aceitar sem verificar','Abrir torneiras para testar'],0]
+  ],
+  3:[
+    ['NASCENTE','Ao visitar uma nascente, qual comportamento é correto?',['Preservar o local e não deixar resíduos','Retirar a vegetação','Jogar restos de comida na água'],0],
+    ['MATA CILIAR','A vegetação nas margens dos rios ajuda a:',['Proteger as margens e o ecossistema','Aumentar a erosão','Impedir o ciclo da água'],0],
+    ['RIO','Por que não devemos jogar lixo em rios e córregos?',['Porque polui a água e prejudica seres vivos','Porque o lixo some sozinho','Porque os rios não têm relação com abastecimento'],0],
+    ['MANANCIAL','Uma área de manancial precisa principalmente de:',['Proteção contra poluição e degradação','Mais lixo para cobrir o solo','Retirada da vegetação'],0],
+    ['CHUVA','Parte da água da chuva pode infiltrar no solo e contribuir para:',['Reservas subterrâneas e o ciclo da água','Eliminar os rios','Transformar água em resíduos'],0],
+    ['POLUIÇÃO','Óleo e produtos químicos podem ser jogados no ralo?',['Não, precisam de destinação adequada','Sim, sempre','Somente quando há muita água'],0],
+    ['FLORESTA','Preservar áreas naturais ajuda os recursos hídricos porque:',['Protege ecossistemas e áreas de recarga','Não existe relação','Faz toda água evaporar'],0],
+    ['CICLO DA ÁGUA','O ciclo da água nos ensina que:',['Devemos usar a água com responsabilidade e proteger suas fontes','Toda água é potável','Podemos desperdiçar porque ela nunca acaba'],0]
+  ]
+};
+
+function shuf16(a){
+  a=a.slice();
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+function makeQ16(raw){
+  const [cat,text,options,correct]=raw;
+  const pairs=options.map((t,i)=>({t,ok:i===correct}));
+  const p=shuf16(pairs);
+  return {
+    cat,text,options:p.map(x=>x.t),correct:p.findIndex(x=>x.ok),
+    ok:'Excelente! Essa atitude protege a água.',
+    err:'Pense no local onde você está e escolha a atitude que evita desperdício ou protege o ambiente.'
+  };
+}
+function configure16(phase){
+  phase=Math.max(1,Math.min(3,Number(phase)||1));
+  G.phase=phase;
+
+  // Questions are forced AFTER all older init wrappers.
+  const chosen=shuf16(HH16Q[phase]).slice(0,3).map(makeQ16);
+  QUESTIONS.splice(0,QUESTIONS.length,...chosen);
+  G.questionSolved=[false,false,false];
+  G.questions=0;
+  if(Array.isArray(aylas)){
+    aylas.forEach((a,i)=>{a.mi=i;a.done=false;a.tipShown=false;});
+  }
+
+  // Make object placement different too.
+  if(phase===2){
+    const p2=[
+      [0,GND,WW,90],[260,305,125,22],[560,250,135,22],[920,325,150,22],
+      [1280,275,120,22],[1640,220,145,22],[2050,310,130,22],
+      [2460,245,150,22],[2920,305,125,22],[3400,235,155,22],[3860,290,150,22]
+    ];
+    platforms=p2.map(v=>({x:v[0],y:v[1],w:v[2],h:v[3]}));
+    taps=[new Tap(700,GND-70,false),new Tap(2010,GND-70,true),new Tap(3240,GND-70,false)];
+    aylas=[new AylaNPC(1040,GND-96,0,0,false),new AylaNPC(2380,GND-96,1,1,false),new AylaNPC(3620,GND-96,2,2,true)];
+    drops=[
+      new WaterDrop(300,190,false),new WaterDrop(650,155,false),new WaterDrop(990,205,false),
+      new WaterDrop(1360,160,false),new WaterDrop(1740,125,true),new WaterDrop(2100,190,false),
+      new WaterDrop(2520,145,false),new WaterDrop(2950,205,false),new WaterDrop(3370,150,false),new WaterDrop(3840,185,true)
+    ];
+    const mk=(x,i)=>{const v=new VillainNPC(x,GND-100,GASTAO_MSGS[i%GASTAO_MSGS.length]);v.ox=x;v.speed=(v.speed||1)*1.18;return v;};
+    villains=[mk(1450,0),mk(2730,1),mk(3900,2)];
+    streetLeak=new StreetLeak(1180,GND-56);
+    bigLeak=new BigLeak(2550,GND-52);
+    houseLeak=new HouseLeak(3450,GND-112);
+    goalFlag=new GoalFlag(4300,GND-130);
+    G.timeLeft=210;
+
+  }else if(phase===3){
+    const p3=[
+      [0,GND,WW,90],[340,285,115,22],[700,225,110,22],[1080,165,120,22],
+      [1480,260,105,22],[1840,200,110,22],[2220,135,120,22],
+      [2660,245,105,22],[3040,180,115,22],[3460,120,125,22],[3920,220,120,22]
+    ];
+    platforms=p3.map(v=>({x:v[0],y:v[1],w:v[2],h:v[3]}));
+    taps=[new Tap(820,GND-70,false),new Tap(2260,GND-70,true),new Tap(3600,GND-70,false)];
+    aylas=[new AylaNPC(1200,GND-96,0,0,false),new AylaNPC(2740,GND-96,1,1,false),new AylaNPC(4050,GND-96,2,2,true)];
+    drops=[
+      new WaterDrop(390,170,false),new WaterDrop(760,115,false),new WaterDrop(1120,85,true),
+      new WaterDrop(1510,175,false),new WaterDrop(1880,115,false),new WaterDrop(2250,70,true),
+      new WaterDrop(2670,150,false),new WaterDrop(3070,95,false),new WaterDrop(3500,65,true),new WaterDrop(3960,135,false)
+    ];
+    const mk=(x,i)=>{const v=new VillainNPC(x,GND-100,GASTAO_MSGS[i%GASTAO_MSGS.length]);v.ox=x;v.speed=(v.speed||1)*1.12;return v;};
+    villains=[mk(1580,0),mk(3000,1),mk(4160,2)];
+    streetLeak=new StreetLeak(980,GND-56);
+    bigLeak=new BigLeak(2450,GND-52);
+    houseLeak=new HouseLeak(3700,GND-112);
+    goalFlag=new GoalFlag(4380,GND-130);
+    G.timeLeft=225;
+  }
+
+  const badge=document.getElementById('phase-badge');
+  if(badge)badge.textContent=phase===1?'FASE 1 • CIDADE':phase===2?'FASE 2 • ESCOLA E COMUNIDADE':'FASE 3 • NATUREZA E MANANCIAIS';
+  const mission=document.querySelector('#mission-live span');
+  if(mission)mission.textContent=phase===1?'Economize água nas situações do cotidiano.':
+    phase===2?'Proteja a água na escola, quadra, pátio e comunidade.':
+    'Proteja rios, nascentes, florestas e mananciais.';
+  updateHUD();
+}
+
+window.HydroHeroConfigurePhase=configure16;
+
+// Replace phase starter installed by v15 so configuration is guaranteed.
+window.HydroHeroStartPhase=function(phase){
+  const target=Math.max(1,Math.min(3,Number(phase)||1));
+  clearInterval(G.timerInt);
+  try{cancelAnimationFrame(animId);}catch(e){}
+  const nick=G.nickname, character=G.playerCharacter;
+  G.phase=target;
+  initLevel();
+  G.phase=target;
+  if(nick)G.nickname=nick;
+  if(character)G.playerCharacter=character;
+  configure16(target);
+  closeAllPW();showGame();gameRunning=true;startTimer();requestAnimationFrame(gameLoop);
+  if(typeof showNPC==='function'&&target>1){
+    showNPC(target===2
+      ?'<strong>🏫 FASE 2 — ESCOLA E COMUNIDADE</strong><br>Novo cenário, novos desafios e novas perguntas!'
+      :'<strong>🌿 FASE 3 — NATUREZA E MANANCIAIS</strong><br>Agora a missão é proteger as fontes de água!',
+      false,3000);
+  }
+};
+
+// Final capture listener beats every old onclick handler.
+function bind16(){
+  const b=document.getElementById('bnextphase');if(!b)return;
+  b.addEventListener('click',function(e){
+    e.preventDefault();e.stopImmediatePropagation();
+    const current=Math.max(1,Math.min(3,Number(G.phase)||1));
+    if(current<3)window.HydroHeroStartPhase(current+1);
+    else{G.phase=1;goHome();}
+  },true);
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(bind16,300));
+else setTimeout(bind16,300);
+
+if(typeof doVictory==='function'){
+  const v16=doVictory;
+  doVictory=function(){
+    v16();
+    setTimeout(bind16,20);
+  };
+}
 })();
 </script>
 
