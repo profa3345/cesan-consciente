@@ -535,22 +535,8 @@ html,body{background:#020b16!important}
 
 </style>
 <!-- HydroHero 2.1: Ayla atualizada em 2026-08-20 -->
-
-<style>
-#portal-return-hh15{
- position:fixed;top:12px;right:58px;z-index:55;
- padding:8px 12px;border-radius:10px;
- background:rgba(3,12,29,.88);border:1px solid rgba(86,229,255,.25);
- color:#dff8ff;text-decoration:none;font-family:'Nunito',sans-serif;
- font-size:.68rem;font-weight:900;backdrop-filter:blur(10px)
-}
-#portal-return-hh15:hover{border-color:#56e5ff;color:#56e5ff}
-@media(max-width:560px){#portal-return-hh15{right:54px;padding:7px 9px;font-size:.58rem}}
-</style>
-
 </head>
 <body>
-<a id="portal-return-hh15" href="index.html">← PORTAL ÁGUA CONSCIENTE</a>
 <canvas id="gc"></canvas>
 
 <div id="pw-profile" class="off">
@@ -3988,184 +3974,111 @@ window.HydroHeroOnline = {
 
 
 <script>
-/* ===== HYDROHERO 15 — PROGRESSÃO DE FASE ROBUSTA ===== */
+/* ===== HYDROHERO 15 — AVANÇO DE FASE DEFINITIVO ===== */
 (function(){
 'use strict';
 
-/*
-  requestedPhase fica fora do ciclo normal de reset da fase.
-  Isso impede que wrappers antigos de initLevel façam a Fase 2
-  voltar silenciosamente para a Fase 1.
-*/
-if(typeof G!=='undefined'){
-  G.requestedPhase = Math.max(1, Math.min(3, Number(G.phase)||1));
-}
-
-if(typeof initLevel==='function'){
-  const hh15BaseInit = initLevel;
-
-  initLevel = function(){
-    const target = Math.max(
-      1,
-      Math.min(3, Number(G.requestedPhase || G.phase || 1))
-    );
-
-    // Coloca a fase correta ANTES dos wrappers antigos executarem.
-    G.phase = target;
-
-    hh15BaseInit();
-
-    // E reafirma DEPOIS, caso algum código antigo tenha modificado o valor.
-    G.phase = target;
-    G.requestedPhase = target;
-
-    // Reaplica configuração visual/educativa da fase correta.
-    if(typeof HH12_PHASES !== 'undefined' && HH12_PHASES[target]){
-      const cfg = HH12_PHASES[target];
-
-      const badge = document.getElementById('phase-badge');
-      if(badge){
-        badge.textContent = cfg.title || cfg.name || ('FASE '+target);
-        if(cfg.accent) badge.style.color = cfg.accent;
-      }
-
-      const mission = document.querySelector('#mission-live span');
-      if(mission && cfg.subtitle){
-        mission.textContent = cfg.subtitle + '. Complete os desafios desta localidade.';
-      }
-    }
-
-    const sign = document.getElementById('phase-sign');
-    if(sign){
-      sign.textContent =
-        target===1 ? '🏙️ CIDADE' :
-        target===2 ? '🏫 ESCOLA E COMUNIDADE' :
-                     '🌿 NATUREZA E MANANCIAIS';
-    }
-  };
-}
-
-window.hh15StartPhase = function(targetPhase){
-  const target = Math.max(1, Math.min(3, Number(targetPhase)||1));
-
+function hh15StartPhase(phase){
+  const target=Math.max(1,Math.min(3,Number(phase)||1));
   clearInterval(G.timerInt);
-  if(typeof cancelAnimationFrame==='function' && typeof animId!=='undefined'){
-    try{ cancelAnimationFrame(animId); }catch(e){}
-  }
+  try{cancelAnimationFrame(animId);}catch(e){}
 
-  closeAllPW();
+  // Preserve profile and explicitly persist the target phase across every
+  // initLevel wrapper installed by previous versions.
+  const nick=G.nickname;
+  const character=G.playerCharacter;
+  G.phase=target;
 
-  G.requestedPhase = target;
-  G.phase = target;
-
-  // Inicialização explícita, sem passar pelo fluxo que antes perdia a fase.
   initLevel();
 
-  // Garantia final.
-  G.phase = target;
-  G.requestedPhase = target;
+  G.phase=target;
+  if(nick)G.nickname=nick;
+  if(character)G.playerCharacter=character;
 
+  closeAllPW();
   showGame();
-  gameRunning = true;
+  gameRunning=true;
   startTimer();
   requestAnimationFrame(gameLoop);
 
-  setTimeout(()=>{
-    const sign=document.getElementById('phase-sign');
-    if(sign){
-      sign.style.display='block';
-      sign.textContent =
-        target===1 ? '🏙️ FASE 1 • CIDADE' :
-        target===2 ? '🏫 FASE 2 • ESCOLA E COMUNIDADE' :
-                     '🌿 FASE 3 • NATUREZA E MANANCIAIS';
-    }
+  const badge=document.getElementById('phase-badge');
+  if(badge){
+    badge.textContent=target===1?'FASE 1 • CIDADE':
+                      target===2?'FASE 2 • COMUNIDADE E ESCOLA':
+                                 'FASE 3 • NATUREZA E MANANCIAIS';
+  }
 
-    if(typeof showNPC==='function'){
-      showNPC(
+  const sign=document.getElementById('phase-sign');
+  if(sign){
+    sign.style.display='block';
+    sign.textContent=target===1?'🏙️ CIDADE':
+                     target===2?'🏫 ESCOLA E COMUNIDADE':
+                                '🌿 NATUREZA E MANANCIAIS';
+  }
+
+  if(typeof showNPC==='function' && target>1){
+    showNPC(
+      `<strong>FASE ${target} INICIADA!</strong><br>${
         target===2
-          ? '<strong>FASE 2 • ESCOLA E COMUNIDADE</strong><br>Agora os desafios acontecem em espaços coletivos. As perguntas e o cenário são diferentes da Fase 1.'
-          : target===3
-          ? '<strong>FASE 3 • NATUREZA E MANANCIAIS</strong><br>Proteja rios, nascentes e os recursos naturais.'
-          : '<strong>FASE 1 • CIDADE</strong><br>Comece sua missão pelo uso consciente da água.',
-        false, 3200
-      );
-    }
-  },100);
-};
+          ? 'Agora a missão acontece na escola e na comunidade.'
+          : 'Agora a missão segue para a natureza e os mananciais.'
+      }`,
+      false,2800
+    );
+  }
+}
 
-// Substitui definitivamente o handler antigo do botão Próxima Fase.
 function hh15BindNext(){
-  const old = document.getElementById('bnextphase');
-  if(!old) return;
+  const old=document.getElementById('bnextphase');
+  if(!old)return;
 
-  // Clone remove onclick e listeners antigos associados ao elemento.
-  const b = old.cloneNode(true);
-  old.parentNode.replaceChild(b, old);
+  // Clone removes every previous click listener/property handler that may
+  // have been resetting the game to phase 1.
+  const b=old.cloneNode(true);
+  old.parentNode.replaceChild(b,old);
 
-  b.addEventListener('click', function(e){
+  b.addEventListener('click',function(e){
     e.preventDefault();
     e.stopPropagation();
 
-    const current = Math.max(1, Math.min(3, Number(G.phase)||1));
-
-    if(current < 3){
-      hh15StartPhase(current + 1);
+    const current=Math.max(1,Math.min(3,Number(G.phase)||1));
+    if(current<3){
+      const next=current+1;
+      G.phase=next;
+      hh15StartPhase(next);
     }else{
-      G.phase = 1;
-      G.requestedPhase = 1;
+      G.phase=1;
       goHome();
     }
-  });
+  },true);
 }
 
-// Reaplica o texto correto da próxima fase ao vencer.
+// Rebind after every victory, because older code can alter the button.
 if(typeof doVictory==='function'){
-  const hh15BaseVictory = doVictory;
-  doVictory = function(){
-    const completed = Math.max(1, Math.min(3, Number(G.phase)||1));
-    G.requestedPhase = completed;
-
-    hh15BaseVictory();
-
+  const baseVictory15=doVictory;
+  doVictory=function(){
+    baseVictory15();
     setTimeout(()=>{
       hh15BindNext();
       const b=document.getElementById('bnextphase');
-      if(!b)return;
-
-      if(completed===1){
+      if(b){
+        const current=Math.max(1,Math.min(3,Number(G.phase)||1));
         b.style.display='inline-flex';
-        b.textContent='➡️ INICIAR FASE 2 • ESCOLA E COMUNIDADE';
-      }else if(completed===2){
-        b.style.display='inline-flex';
-        b.textContent='➡️ INICIAR FASE 3 • NATUREZA E MANANCIAIS';
-      }else{
-        b.style.display='inline-flex';
-        b.textContent='🏆 CONCLUIR MISSÃO';
+        b.textContent=current<3
+          ? `➡️ INICIAR FASE ${current+1}`
+          : '🏆 CONCLUIR MISSÃO';
       }
     },0);
   };
 }
 
-// Perfil inicial sempre começa na Fase 1.
-const profileStart = document.getElementById('profile-start');
-if(profileStart){
-  profileStart.addEventListener('click',()=>{
-    // Só fixa Fase 1 quando realmente inicia uma nova aventura pelo perfil.
-    setTimeout(()=>{
-      if(G.screen==='game' && (!G.requestedPhase || G.requestedPhase===1)){
-        G.requestedPhase=1;
-        G.phase=1;
-      }
-    },0);
-  }, true);
-}
-
 if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded', hh15BindNext);
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(hh15BindNext,150));
 }else{
-  hh15BindNext();
+  setTimeout(hh15BindNext,150);
 }
 
+window.HydroHeroStartPhase=hh15StartPhase;
 })();
 </script>
 
