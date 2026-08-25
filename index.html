@@ -41,6 +41,8 @@ nav{
   color:var(--mist);transition:color .2s;
 }
 .nav-links a:hover{color:var(--sky)}
+.nav-game{background:#7c3aed;color:#fff!important;border-radius:10px;padding:9px 18px;font-size:13px;font-weight:700;text-decoration:none;transition:all .2s;box-shadow:0 5px 16px rgba(124,58,237,.25)}
+.nav-game:hover{background:#6d28d9;transform:translateY(-1px)}
 .nav-cta{
   background:var(--sky);color:#fff;
   border-radius:10px;padding:9px 20px;
@@ -146,6 +148,7 @@ nav{
   box-shadow:0 8px 32px rgba(0,0,0,.2);
 }
 .btn-hero-primary:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.btn-hero-game{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:15px 28px;border-radius:12px;background:#7c3aed;color:#fff;text-decoration:none;font-size:15px;font-weight:700;box-shadow:0 8px 24px rgba(124,58,237,.28);transition:all .2s}.btn-hero-game:hover{background:#6d28d9;transform:translateY(-2px)}
 .btn-hero-ghost{
   border:2px solid rgba(255,255,255,.4);color:#fff;
   border-radius:12px;padding:13px 26px;
@@ -485,7 +488,7 @@ footer{
 @media(max-width:480px){
   .impact-grid{grid-template-columns:1fr}
   .hero-actions{flex-direction:column;align-items:stretch}
-  .btn-hero-primary,.btn-hero-ghost{justify-content:center}
+  .btn-hero-primary,.btn-hero-game,.btn-hero-ghost{justify-content:center}
 }
 </style>
 </head>
@@ -501,7 +504,7 @@ footer{
     <a href="#funcionalidades">Funcionalidades</a>
     <a href="#como-funciona">Como funciona</a>
     <a href="#impacto">Impacto</a>
-    <a href="aguacesan.html" class="nav-cta">Acessar plataforma →</a>
+    <a href="hydrohero.html" class="nav-game">🎮 Jogar HydroHero</a><a href="aguacesan.html" class="nav-cta">Acessar plataforma →</a>
   </div>
   <button class="hamburger" aria-label="Menu">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -547,6 +550,9 @@ footer{
   <div class="hero-actions">
     <a href="aguacesan.html" class="btn-hero-primary">
       💧 Acessar a plataforma
+    </a>
+    <a href="hydrohero.html" class="btn-hero-game">
+      🎮 Jogar HydroHero
     </a>
     <a href="#como-funciona" class="btn-hero-ghost">
       ▶ Como funciona
