@@ -631,7 +631,7 @@ html,body{background:#020b16!important}
     <div class="pc p3 locked" id="phase3"><div class="pico">🌿</div><div><div class="pname">Fase 3 — Proteção aos Mananciais</div><div class="pdesc">Proteja nascentes, rios e matas ciliares</div><div class="pstars"><span class="star">★</span><span class="star">★</span><span class="star">★</span></div></div></div>
     <div class="pc p4 locked" id="phase4"><div class="pico">🏘️</div><div><div class="pname">Fase 4 — Bairro Consciente</div><div class="pdesc">Resolva emergências e desperdícios no bairro</div><div class="pstars"><span class="star">★</span><span class="star">★</span><span class="star">★</span></div></div></div>
     <div class="pc p5 locked" id="phase5"><div class="pico">💀</div><div><div class="pname">Fase 5 — Capitão Gastão Ataca!</div><div class="pdesc">Enfrente o Vilão do Desperdício</div><div class="pstars"><span class="star">★</span><span class="star">★</span><span class="star">★</span></div></div></div>
-    <div class="pc p6 locked" id="phase6"><div class="pico">🏗️</div><div><div class="pname">Fase 6 — Reservatórios da CESAN</div><div class="pdesc">Garanta o abastecimento e conclua a campanha</div><div class="pstars"><span class="star">★</span><span class="star">★</span><span class="star">★</span></div></div></div>
+    <div class="pc p6 locked" id="phase6"><div class="pico">🏗️</div><div><div class="pname">Fase 6 — Complexo de Reservação CESAN</div><div class="pdesc">Opere os reservatórios, proteja a rede e conclua a campanha</div><div class="pstars"><span class="star">★</span><span class="star">★</span><span class="star">★</span></div></div></div>
   </div>
 </div>
 <div id="v-chars" class="view off">
@@ -703,17 +703,37 @@ function loadImgs(cb){const ks=Object.keys(ISRC);ks.forEach(k=>{const i=new Imag
 
 const GC=document.getElementById('gc'),ctx=GC.getContext('2d');
 const MM=document.getElementById('mmc'),mctx=MM.getContext('2d');
-function resize(){
-  const vv=window.visualViewport;
-  const w=Math.round(vv?.width||innerWidth),h=Math.round(vv?.height||innerHeight);
-  document.documentElement.style.setProperty('--app-height',h+'px');
+/* Mobile stability: do NOT size the game from visualViewport.
+   The visual viewport changes while the browser keyboard/toolbars animate,
+   which used to resize the canvas every frame and make the whole scene shake. */
+let _resizeTimer=0,_stableViewportW=0,_stableViewportH=0;
+function resize(force=false){
+  const focused=document.activeElement;
+  const editing=focused && /^(INPUT|TEXTAREA|SELECT)$/.test(focused.tagName);
+  // Keep the canvas frozen throughout the keyboard animation. Recreating the
+  // canvas clears the current frame and was the main source of mobile flashes.
+  if(editing)return;
+  const root=document.documentElement;
+  const w=Math.max(1,Math.round(root.clientWidth || window.innerWidth));
+  const h=Math.max(1,Math.round(root.clientHeight || window.innerHeight));
+  const mobileViewport=window.matchMedia('(pointer:coarse)').matches || w<=768;
+  // Mobile browser chrome continuously changes only the viewport height while
+  // scrolling/focusing. Keep the last stable canvas size in that situation.
+  if(!force && mobileViewport && _stableViewportW && Math.abs(w-_stableViewportW)<=2)return;
+  if(w===_stableViewportW && h===_stableViewportH)return;
+  _stableViewportW=w;_stableViewportH=h;
+  root.style.setProperty('--app-height',h+'px');
   if(GC.width!==w)GC.width=w;
   if(GC.height!==h)GC.height=h;
 }
-window.addEventListener('resize',resize,{passive:true});
-window.addEventListener('orientationchange',()=>setTimeout(resize,120),{passive:true});
-if(window.visualViewport){visualViewport.addEventListener('resize',resize,{passive:true});visualViewport.addEventListener('scroll',resize,{passive:true});}
-resize();
+function queueResize(force=false){
+  clearTimeout(_resizeTimer);
+  _resizeTimer=setTimeout(()=>resize(force),80);
+}
+window.addEventListener('resize',()=>queueResize(false),{passive:true});
+window.addEventListener('orientationchange',()=>setTimeout(()=>resize(true),320),{passive:true});
+// visualViewport.scroll is intentionally NOT observed.
+resize(true);
 
 // WORLD CONSTANTS
 // WW = world width in world units
@@ -1553,8 +1573,13 @@ function render(){
   ctx.clearRect(0,0,GC.width,GC.height);
   ctx.save();
   if(G.shakeT>0){
-    const sx=(Math.random()-.5)*G.shakeMag,sy=(Math.random()-.5)*G.shakeMag;
-    ctx.translate(sx,sy);G.shakeT--;
+    // Impact shake is intentionally disabled on touch devices: on small
+    // screens the random canvas translation reads as a broken/trembling UI.
+    if(!isTouchDevice()){
+      const sx=(Math.random()-.5)*G.shakeMag,sy=(Math.random()-.5)*G.shakeMag;
+      ctx.translate(sx,sy);
+    }
+    G.shakeT--;
   }
 
   // SKY
@@ -5602,12 +5627,17 @@ function hh23FrameForPlayer(p){
 function hh23DrawCell(sheet,frame,cx,bottom,dh,faceRight,glow,motion={}){
   const cellW=sheet.naturalWidth/(motion.cells||10),sh=sheet.naturalHeight;
   const dw=cellW/sh*dh,dx=cx-dw/2,dy=bottom-dh;
+  // Recorta uma margem mínima nas bordas de cada quadro para evitar que
+  // pixels do quadro vizinho "vazem" quando a sprite sheet não foi
+  // recortada com perfeição (evita sombras/sobras nas bordas).
+  const trim=Math.min(6,cellW*0.03);
+  const sx=frame*cellW+trim,sw=cellW-trim*2;
   ctx.save();
   ctx.translate(cx,bottom-(motion.bob||0));
   ctx.scale(faceRight?1:-1,motion.scaleY||1);
   ctx.rotate((motion.lean||0)*(faceRight?1:-1));
   ctx.shadowBlur=10*ws();ctx.shadowColor=glow;
-  ctx.drawImage(sheet,frame*cellW,0,cellW,sh,-dw/2,-dh,dw,dh);
+  ctx.drawImage(sheet,sx,0,sw,sh,-dw/2,-dh,dw,dh);
   ctx.restore();
   return {x:dx,y:dy-(motion.bob||0),w:dw,h:dh};
 }
@@ -5683,35 +5713,75 @@ if(typeof AylaNPC!=='undefined'){
 
 /* Capitão Gastão: corpo inteiro por quadro, sem braços/pernas desenhados. */
 if(typeof VillainNPC!=='undefined'){
-  const hh23GastaoBaseUpdate=VillainNPC.prototype.update;
   VillainNPC.prototype.update=function(){
-    const beforeX=this.x;
-    hh23GastaoBaseUpdate.call(this);
-    // A animação acompanha a distância realmente percorrida. Assim as pernas
-    // não ficam paradas durante a corrida nem continuam correndo sem avanço.
-    this._hhWalkDistance=(this._hhWalkDistance||0)+Math.abs(this.x-beforeX);
+    const now=performance.now();
+    const elapsed=Math.min(.05,Math.max(.001,(now-(this._hhLastUpdate||now-16.67))/1000));
+    const step=elapsed*60;
+    this._hhLastUpdate=now;
+    this.bt+=.035*step;this.gt+=.042*step;
+
+    const dx=(player.x+player.w/2)-(this.x+this.w/2);
+    const canChase=Math.abs(dx)<240&&Math.abs(player.y-this.y)<140;
+    const stopDistance=34;
+    let actualSpeed=0;
+
+    if(canChase){
+      this.chasing=true;
+      // Ao alcançar o herói, Gastão para em vez de trocar de direção a cada
+      // quadro. Isso elimina o tremor que parecia um travamento.
+      if(Math.abs(dx)>stopDistance){
+        const direction=dx>0?1:-1;
+        this._hhFacing=direction;
+        this.vx=direction*1.6;
+        actualSpeed=.72;
+        this.x+=direction*actualSpeed*step;
+      }else{
+        this.vx=0;
+      }
+    }else{
+      this.chasing=false;
+      if(!this.vx)this.vx=(this._hhFacing||1)*.9;
+      const direction=this.vx>=0?1:-1;
+      this._hhFacing=direction;
+      actualSpeed=.9;
+      this.x+=direction*actualSpeed*step;
+      if(this.x>this.ox+160){this.x=this.ox+160;this.vx=-.9;this._hhFacing=-1;}
+      else if(this.x<this.ox-160){this.x=this.ox-160;this.vx=.9;this._hhFacing=1;}
+    }
+
+    this._hhMoving=actualSpeed>.05;
+    this._hhMotionSpeed=actualSpeed;
+    // Relógio independente do FPS e da distância: a corrida continua fluida
+    // mesmo quando há pequenas colisões ou quedas momentâneas de desempenho.
+    if(this._hhMoving)this._hhAnimClock=(this._hhAnimClock||0)+elapsed*(this.chasing?11.5:7.2);
+    else this._hhIdleClock=(this._hhIdleClock||0)+elapsed*2.1;
   };
   VillainNPC.prototype.draw=function(){
     const s=ws(),px=wx(this.x),ground=wy(GND),boxW=this.w*s;
     if(px<-boxW*3||px>GC.width+boxW*3)return;
     if(!HH_GASTAO_SHEET.complete||!HH_GASTAO_SHEET.naturalWidth)return;
 
-    const dist=Math.abs(player.x-this.x),chasing=this.chasing||dist<300,moving=chasing||Math.abs(this.vx||0)>.25;
-    const clock=performance.now(),travel=this._hhWalkDistance||0;
-    // O quadro 5 é uma cópia do 4. O ciclo de oito etapas alterna apoio,
-    // impulso e as duas pernas, com poses intermediárias entre os extremos.
-    const runFrames=[0,1,2,3,4,5,6,7],walkFrames=[0,1,2,1,6,7,6,1],idleFrames=[0,7];
-    const animStep=Math.floor(travel/(chasing?5.8:8.5));
+    const chasing=!!this.chasing,moving=!!this._hhMoving;
+    const clock=performance.now(),animClock=this._hhAnimClock||0,idleClock=this._hhIdleClock||0;
+    // O quadro 5 repete visualmente o quadro 4 e foi retirado dos ciclos.
+    // A sequência alterna claramente as duas pernas e evita pausas falsas.
+    // Os quadros 2 e 6 da sprite sheet trazem um respingo/garra branca
+    // recortado bem em cima da borda do quadro (defeito de origem da
+    // imagem), aparecendo como uma "sombra" malcortada e piscando como um
+    // choque durante a corrida. Por isso foram retirados dos ciclos.
+    const runFrames=[0,1,3,4,7,4,3,1];
+    const walkFrames=[0,1,3,4,7];
+    const idleFrames=[0,4,0,1];
     const frame=chasing
-      ?runFrames[animStep%runFrames.length]
+      ?runFrames[Math.floor(animClock)%runFrames.length]
       :moving
-        ?walkFrames[animStep%walkFrames.length]
-        :idleFrames[Math.floor(clock/430)%idleFrames.length];
-    const facing=chasing?player.x>this.x:(this.vx||1)>0;
+        ?walkFrames[Math.floor(animClock)%walkFrames.length]
+        :idleFrames[Math.floor(idleClock)%idleFrames.length];
+    const facing=(this._hhFacing||1)>0;
     const dh=(chasing?140:132)*s,cx=px+boxW/2;
 
     ctx.save();ctx.globalAlpha=.24;ctx.fillStyle='#041006';ctx.beginPath();ctx.ellipse(cx,ground+4*s,boxW*.58,7*s,0,0,Math.PI*2);ctx.fill();ctx.restore();
-    const stride=moving?Math.sin(travel*(chasing?.135:.09)):Math.sin(clock*.0021);
+    const stride=moving?Math.sin(animClock*Math.PI*.92):Math.sin(clock*.0021);
     const rect=hh23DrawCell(HH_GASTAO_SHEET,frame,cx,ground,dh,facing,'rgba(0,0,0,0)',{
       bob:moving?Math.abs(stride)*(chasing?6:4):Math.sin(clock*.0021)*1.8,
       lean:chasing?.055:moving?stride*.025:Math.sin(clock*.0014)*.015,
@@ -6087,7 +6157,7 @@ const META={
   3:['FASE 3 • PROTEÇÃO AOS MANANCIAIS','Proteja rios, nascentes, florestas e matas ciliares.','🌿 PROTEÇÃO AOS MANANCIAIS'],
   4:['FASE 4 • BAIRRO CONSCIENTE','Resolva vazamentos e desperdícios no bairro.','🏘️ BAIRRO CONSCIENTE'],
   5:['FASE 5 • CAPITÃO GASTÃO ATACA!','Enfrente o Vilão do Desperdício e proteja a comunidade.','💀 CAPITÃO GASTÃO ATACA!'],
-  6:['FASE 6 • RESERVATÓRIOS DA CESAN','Proteja os reservatórios e garanta o abastecimento.','🏗️ RESERVATÓRIOS DA CESAN']
+  6:['FASE 6 • COMPLEXO DE RESERVAÇÃO CESAN','Opere os reservatórios, proteja a rede e garanta o abastecimento.','🏗️ COMPLEXO DE RESERVAÇÃO CESAN']
 };
 const Q={
   4:[
@@ -6322,6 +6392,1011 @@ body.game-active #menu-music-toggle{display:none}
   new MutationObserver(syncScene).observe(document.body,{attributes:true,attributeFilter:['class']});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)music.pause();else syncScene();});
   syncButton();
+})();
+</script>
+
+
+
+<script>
+/* ===== HYDROHERO — FASE 6 FINAL: COMPLEXO DE RESERVAÇÃO + ENCERRAMENTO ===== */
+(function(){
+  'use strict';
+
+  /*
+   * A Fase 6 ganha uma identidade visual própria: complexo de reservação,
+   * centro de controle, adutoras, válvulas, passarelas e iluminação técnica.
+   * O desenho é aplicado por cima do cenário-base apenas na Fase 6, portanto
+   * as plataformas, objetos e colisões da fase continuam funcionando.
+   */
+  const hh6BaseWorld = drawWorld;
+  drawWorld = function(){
+    const p = Number(G.phase)||1;
+    if(p !== 6){ hh6BaseWorld(); return; }
+
+    const s = ws();
+    const ground = wy(GND);
+    const t = performance.now()*.001;
+    const W = GC.width, H = GC.height;
+
+    ctx.save();
+
+    /* Céu industrial noturno — sem skyline urbano da Fase 1. */
+    const sky = ctx.createLinearGradient(0,0,0,ground);
+    sky.addColorStop(0,'#03132b');
+    sky.addColorStop(.45,'#06466a');
+    sky.addColorStop(1,'#0b7890');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0,0,W,ground);
+
+    /* Lua e brilho atmosférico. */
+    const mx=W*.78,my=H*.18;
+    const moonGlow=ctx.createRadialGradient(mx,my,3,mx,my,90*s);
+    moonGlow.addColorStop(0,'rgba(220,250,255,.30)');
+    moonGlow.addColorStop(.25,'rgba(110,220,255,.13)');
+    moonGlow.addColorStop(1,'rgba(80,180,255,0)');
+    ctx.fillStyle=moonGlow;ctx.beginPath();ctx.arc(mx,my,90*s,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(220,248,255,.9)';ctx.beginPath();ctx.arc(mx,my,18*s,0,Math.PI*2);ctx.fill();
+
+    /* Montanhas/serras muito discretas ao fundo, sem prédios. */
+    ctx.fillStyle='rgba(2,35,53,.72)';
+    for(let i=-1;i<7;i++){
+      const x=i*300*s-(G.cam*.05%(300*s));
+      ctx.beginPath();ctx.moveTo(x,ground-30*s);ctx.lineTo(x+150*s,ground-170*s-(i%2)*35*s);ctx.lineTo(x+300*s,ground-30*s);ctx.closePath();ctx.fill();
+    }
+
+    /* Complexo técnico em parallax. */
+    const tank=(xw,r,h)=>{
+      const x=wx(xw), y=ground-h*s;
+      const rr=r*s;
+      ctx.save();
+      ctx.fillStyle='rgba(155,210,225,.18)';
+      ctx.strokeStyle='rgba(104,225,255,.58)';
+      ctx.lineWidth=2*s;
+      ctx.beginPath();ctx.roundRect(x,y,rr*2,h*s,rr*.18);ctx.fill();ctx.stroke();
+      ctx.fillStyle='rgba(72,190,225,.22)';
+      ctx.fillRect(x+2*s,y+h*s*.54,rr*2-4*s,h*s*.46-2*s);
+      ctx.strokeStyle='rgba(165,240,255,.42)';
+      ctx.beginPath();ctx.moveTo(x,y+h*s*.54);ctx.lineTo(x+rr*2,y+h*s*.54);ctx.stroke();
+      /* domo */
+      ctx.fillStyle='rgba(180,235,245,.20)';
+      ctx.beginPath();ctx.ellipse(x+rr,y,rr,rr*.34,0,Math.PI,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='rgba(120,225,255,.48)';ctx.beginPath();ctx.ellipse(x+rr,y,rr,rr*.34,0,Math.PI,Math.PI*2);ctx.stroke();
+      /* nível de água animado */
+      const waveY=y+h*s*.54 + Math.sin(t*2+xw*.003)*2*s;
+      ctx.strokeStyle='rgba(105,240,255,.72)';ctx.lineWidth=1.2*s;
+      ctx.beginPath();
+      for(let q=0;q<=rr*2;q+=8*s){const yy=waveY+Math.sin(t*2.2+q*.08)*2*s;if(q===0)ctx.moveTo(x+q,yy);else ctx.lineTo(x+q,yy);}ctx.stroke();
+      /* pernas */
+      ctx.strokeStyle='rgba(140,205,220,.42)';ctx.lineWidth=4*s;
+      ctx.beginPath();ctx.moveTo(x+rr*.35,ground,x+rr*.35,y+h*s*.78);ctx.moveTo(x+rr*1.65,ground,x+rr*1.65,y+h*s*.78);ctx.stroke();
+      ctx.restore();
+    };
+
+    tank(420,145,175);
+    tank(2050,170,210);
+    tank(3440,145,175);
+
+    /* Prédio do centro de controle. */
+    const cx=wx(1220), cy=ground-145*s, cw=470*s, ch=145*s;
+    ctx.fillStyle='#102d42';ctx.fillRect(cx,cy,cw,ch);
+    ctx.fillStyle='#1b5872';ctx.fillRect(cx,cy,cw,16*s);
+    ctx.strokeStyle='rgba(110,225,255,.5)';ctx.lineWidth=2*s;ctx.strokeRect(cx,cy,cw,ch);
+    ctx.fillStyle='#dffaff';ctx.font=`${Math.round(16*s)}px Bangers`;ctx.textAlign='center';
+    ctx.fillText('CENTRO DE CONTROLE DO ABASTECIMENTO',cx+cw/2,cy+11*s);
+    for(let r=0;r<2;r++)for(let c=0;c<7;c++){
+      const xx=cx+24*s+c*60*s, yy=cy+35*s+r*47*s;
+      ctx.fillStyle=(Math.sin(t*2+c+r)>-.2)?'rgba(50,235,190,.75)':'rgba(255,190,60,.35)';
+      ctx.fillRect(xx,yy,36*s,25*s);
+      ctx.strokeStyle='rgba(160,235,255,.22)';ctx.strokeRect(xx,yy,36*s,25*s);
+    }
+
+    /* Torre de pressão e sinalização. */
+    const tx=wx(2860), ty=ground-245*s;
+    ctx.strokeStyle='rgba(155,220,235,.42)';ctx.lineWidth=5*s;
+    ctx.beginPath();ctx.moveTo(tx,ground);ctx.lineTo(tx+35*s,ty+65*s);ctx.moveTo(tx+90*s,ground);ctx.lineTo(tx+55*s,ty+65*s);ctx.moveTo(tx+18*s,ground-90*s);ctx.lineTo(tx+74*s,ground-90*s);ctx.stroke();
+    ctx.fillStyle='rgba(110,205,230,.2)';ctx.strokeStyle='rgba(105,225,255,.58)';ctx.lineWidth=2*s;
+    ctx.beginPath();ctx.arc(tx+45*s,ty+52*s,55*s,0,Math.PI*2);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#9ff5ff';ctx.font=`${Math.round(10*s)}px Bangers`;ctx.textAlign='center';ctx.fillText('RESERVA',tx+45*s,ty+56*s);
+
+    /* Adutoras grandes atravessando a instalação. */
+    const pipe=(x1,y1,x2,y2,w)=>{
+      ctx.strokeStyle='rgba(5,27,42,.9)';ctx.lineWidth=w*s+6*s;ctx.beginPath();ctx.moveTo(wx(x1),wy(y1));ctx.lineTo(wx(x2),wy(y2));ctx.stroke();
+      ctx.strokeStyle='rgba(70,190,225,.66)';ctx.lineWidth=w*s;ctx.beginPath();ctx.moveTo(wx(x1),wy(y1));ctx.lineTo(wx(x2),wy(y2));ctx.stroke();
+      ctx.strokeStyle='rgba(190,245,255,.25)';ctx.lineWidth=Math.max(1,s);ctx.beginPath();ctx.moveTo(wx(x1),wy(y1)-2*s);ctx.lineTo(wx(x2),wy(y2)-2*s);ctx.stroke();
+    };
+    pipe(80,GND-62,1050,GND-62,18);
+    pipe(1600,GND-78,2500,GND-78,20);
+    pipe(3000,GND-60,4250,GND-60,18);
+
+    /* Válvulas grandes para reforçar o tema da fase. */
+    [1040,2500,3000].forEach(xw=>{
+      const x=wx(xw),y=ground-62*s;
+      ctx.strokeStyle='#ffd45a';ctx.lineWidth=5*s;ctx.beginPath();ctx.arc(x,y,16*s,0,Math.PI*2);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x-12*s,y-12*s);ctx.lineTo(x+12*s,y+12*s);ctx.moveTo(x+12*s,y-12*s);ctx.lineTo(x-12*s,y+12*s);ctx.stroke();
+      ctx.fillStyle='#ffd45a';ctx.font=`${Math.round(8*s)}px Bangers`;ctx.textAlign='center';ctx.fillText('VÁLVULA',x,y+31*s);
+    });
+
+    /* Placa de missão final. */
+    const sx=wx(3880), sy=ground-210*s;
+    ctx.fillStyle='rgba(4,21,34,.94)';ctx.strokeStyle='rgba(72,225,255,.65)';ctx.lineWidth=2*s;
+    ctx.beginPath();ctx.roundRect(sx,sy,220*s,96*s,10*s);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#58e8ff';ctx.font=`${Math.round(13*s)}px Bangers`;ctx.textAlign='center';ctx.fillText('OPERAÇÃO CONCLUÍDA',sx+110*s,sy+25*s);
+    ctx.fillStyle='#dffaff';ctx.font=`${Math.round(9*s)}px Nunito`;ctx.fillText('ABASTECIMENTO SEGURO',sx+110*s,sy+47*s);ctx.fillText('ÁGUA PROTEGIDA • REDE ESTÁVEL',sx+110*s,sy+65*s);
+
+    /* Chão técnico — substitui visualmente a rua da Fase 1. */
+    const floor=ctx.createLinearGradient(0,ground,0,H);
+    floor.addColorStop(0,'#17343d');floor.addColorStop(.35,'#10252d');floor.addColorStop(1,'#06141d');
+    ctx.fillStyle=floor;ctx.fillRect(0,ground,W,H-ground);
+    ctx.fillStyle='rgba(80,220,235,.18)';ctx.fillRect(0,ground,W,3*s);
+    for(let x=0;x<W;x+=110*s){
+      ctx.fillStyle='rgba(120,225,235,.08)';ctx.fillRect(x,ground+22*s,60*s,4*s);
+      ctx.fillStyle='rgba(0,0,0,.22)';ctx.fillRect(x+65*s,ground+22*s,25*s,4*s);
+    }
+
+    /* Iluminação técnica. */
+    for(const xw of [650,1500,2760,3650]){
+      const x=wx(xw), y=ground-225*s;
+      ctx.strokeStyle='rgba(180,220,225,.35)';ctx.lineWidth=2*s;ctx.beginPath();ctx.moveTo(x,ground);ctx.lineTo(x,y);ctx.stroke();
+      ctx.fillStyle='rgba(255,230,130,.8)';ctx.beginPath();ctx.arc(x,y,5*s,0,Math.PI*2);ctx.fill();
+      const glow=ctx.createRadialGradient(x,y,2,x,y,52*s);glow.addColorStop(0,'rgba(255,220,120,.22)');glow.addColorStop(1,'rgba(255,220,120,0)');ctx.fillStyle=glow;ctx.beginPath();ctx.arc(x,y,52*s,0,Math.PI*2);ctx.fill();
+    }
+
+    ctx.restore();
+  };
+
+  /* ===== TELA FINAL ===== */
+  const style=document.createElement('style');
+  style.textContent=`
+    #hh-final{
+      position:fixed;inset:0;z-index:120000;display:none;align-items:center;justify-content:center;
+      padding:18px;background:radial-gradient(circle at 50% 28%,rgba(0,190,205,.26),rgba(1,8,20,.98) 72%);
+      backdrop-filter:blur(12px);overflow:auto
+    }
+    #hh-final.show{display:flex;animation:hhFinalIn .45s ease both}
+    @keyframes hhFinalIn{from{opacity:0;transform:scale(1.025)}to{opacity:1;transform:scale(1)}}
+    .hh-final-card{
+      position:relative;width:min(900px,95vw);max-height:94vh;overflow:auto;border-radius:30px;
+      border:1px solid rgba(86,229,255,.42);background:linear-gradient(145deg,rgba(5,31,54,.98),rgba(2,9,22,.99));
+      box-shadow:0 35px 110px rgba(0,0,0,.78),0 0 65px rgba(0,214,255,.14);padding:30px 32px 26px;text-align:center
+    }
+    .hh-confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+    .hh-confetti i{position:absolute;width:7px;height:18px;border-radius:3px;opacity:.8;animation:hhConf 3.2s linear infinite}
+    .hh-confetti i:nth-child(1){left:8%;top:-10%;background:#43dcff;animation-delay:.1s}.hh-confetti i:nth-child(2){left:19%;top:-12%;background:#ffd43b;animation-delay:.7s}.hh-confetti i:nth-child(3){left:31%;top:-15%;background:#22e59b;animation-delay:1.2s}.hh-confetti i:nth-child(4){left:46%;top:-8%;background:#ff6f91;animation-delay:.3s}.hh-confetti i:nth-child(5){left:61%;top:-13%;background:#43dcff;animation-delay:1.4s}.hh-confetti i:nth-child(6){left:76%;top:-9%;background:#ffd43b;animation-delay:.9s}.hh-confetti i:nth-child(7){left:90%;top:-14%;background:#22e59b;animation-delay:1.7s}
+    @keyframes hhConf{to{transform:translateY(112vh) rotate(540deg)}}
+    .hh-trophy{font-size:clamp(3.2rem,10vw,6rem);line-height:1;filter:drop-shadow(0 0 25px rgba(255,212,59,.5));animation:hhTrophy 1.7s ease-in-out infinite}
+    @keyframes hhTrophy{50%{transform:translateY(-8px) rotate(2deg) scale(1.05)}}
+    .hh-final-kicker{font:400 1rem Bangers,sans-serif;letter-spacing:4px;color:#56e5ff;margin-top:8px}
+    .hh-final-title{font:400 clamp(2.2rem,7vw,4.7rem) Bangers,sans-serif;letter-spacing:3px;color:#ffd43b;text-shadow:0 4px 0 #6a4700,0 0 28px rgba(255,212,59,.35);line-height:.95;margin:5px 0 12px}
+    .hh-final-score{display:inline-flex;gap:18px;justify-content:center;flex-wrap:wrap;margin:6px 0 18px}
+    .hh-stat{min-width:125px;padding:9px 14px;border-radius:14px;background:rgba(255,255,255,.045);border:1px solid rgba(86,229,255,.18)}
+    .hh-stat b{display:block;font:400 1.65rem Bangers;color:#22e59b}.hh-stat span{font:800 .62rem Nunito;color:rgba(220,240,255,.48);text-transform:uppercase;letter-spacing:1px}
+    .hh-ending{margin:0 auto 18px;max-width:760px;text-align:left;padding:18px 20px;border-radius:17px;background:rgba(0,0,0,.2);border-left:4px solid #22e59b}
+    .hh-ending h3{font:400 1.35rem Bangers;letter-spacing:2px;color:#56e5ff;margin-bottom:8px}.hh-ending p{font:800 .88rem/1.58 Nunito;color:rgba(232,247,255,.82);margin:0 0 8px}.hh-ending p:last-child{margin-bottom:0}
+    .hh-final-message{font:900 .84rem/1.5 Nunito;color:#dffaff;margin:0 auto 18px;max-width:700px}
+    .hh-final-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}.hh-final-actions button{border:0;border-radius:13px;padding:13px 22px;font:900 .82rem Nunito;cursor:pointer}.hh-final-home{background:rgba(255,255,255,.07);color:#bcd5e5;border:1px solid rgba(255,255,255,.12)!important}.hh-final-again{background:linear-gradient(135deg,#43dcff,#22e59b);color:#001a22;box-shadow:0 9px 28px rgba(34,229,155,.2)}
+    @media(max-width:600px){.hh-final-card{padding:24px 16px 20px;border-radius:23px}.hh-ending{padding:14px 15px}.hh-final-score{gap:7px}.hh-stat{min-width:105px}.hh-stat b{font-size:1.4rem}}
+  `;
+  document.head.appendChild(style);
+
+  const final=document.createElement('div');final.id='hh-final';
+  final.innerHTML=`
+    <section class="hh-final-card" role="dialog" aria-modal="true" aria-label="Final da aventura HydroHero">
+      <div class="hh-confetti"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="hh-trophy">🏆💧</div>
+      <div class="hh-final-kicker">MISSÃO COMPLETA • CESAN</div>
+      <div class="hh-final-title">HYDROHERO VENCEU!</div>
+      <div class="hh-final-score">
+        <div class="hh-stat"><b>6/6</b><span>Fases concluídas</span></div>
+        <div class="hh-stat"><b id="hh-final-points">0</b><span>Pontos conquistados</span></div>
+        <div class="hh-stat"><b>💧</b><span>Água protegida</span></div>
+      </div>
+      <div class="hh-ending">
+        <h3>🌊 O FIM DA AVENTURA</h3>
+        <p>Depois de atravessar a cidade, a escola, os mananciais, o bairro e finalmente o complexo de reservação, HydroHero chegou ao coração do sistema de abastecimento.</p>
+        <p>Capitão Gastão tentou provocar o último grande desperdício, mas o plano falhou. Com as válvulas protegidas, os reservatórios seguros e a rede funcionando novamente, a água voltou a seguir seu caminho até a comunidade.</p>
+        <p>Gastão percebeu que não existe vilão maior do que o desperdício. Em vez de continuar lutando contra a água, decidiu aprender a respeitá-la. Ayla sorriu: <strong>“A verdadeira força de um guardião é cuidar de cada gota.”</strong></p>
+        <p>HydroHero olhou para a cidade iluminada e entendeu sua missão: <strong>proteger a água não termina quando o jogo acaba — começa com as escolhas de todos nós.</strong></p>
+      </div>
+      <p class="hh-final-message">🎉 Parabéns! Você completou a campanha HydroHero e se tornou um verdadeiro Guardião da Água.</p>
+      <div class="hh-final-actions"><button class="hh-final-home" id="hh-final-home">🏠 VOLTAR AO MENU</button><button class="hh-final-again" id="hh-final-again">🔄 JOGAR NOVAMENTE</button></div>
+    </section>`;
+  document.body.appendChild(final);
+
+  function hideFinal(){final.classList.remove('show');}
+  function finishToHome(){
+    hideFinal();
+    try{closeAllPW();}catch(e){}
+    try{hideGameUI();}catch(e){}
+    try{showView('home');}catch(e){}
+    try{if(typeof refreshMap==='function')refreshMap();}catch(e){}
+  }
+  document.getElementById('hh-final-home').onclick=finishToHome;
+  document.getElementById('hh-final-again').onclick=function(){
+    hideFinal();
+    try{closeAllPW();}catch(e){}
+    try{resetQuestionHistory();}catch(e){}
+    try{window.HydroHeroStartPhase(1);}catch(e){try{startPhase(1);}catch(_){}}
+  };
+
+  /* O wrapper final fica por último e, portanto, intercepta a vitória real da Fase 6. */
+  const hh6BaseVictory=doVictory;
+  doVictory=function(){
+    const phase=Math.max(1,Math.min(6,Number(G.phase)||1));
+    if(phase!==6)return hh6BaseVictory();
+
+    if(G._hh6EndingPending)return;
+    G._hh6EndingPending=true;
+    gameRunning=false;clearInterval(G.timerInt);
+
+    /* Mantém o registro de campanha e a pontuação da vitória existente. */
+    const result=hh6BaseVictory();
+    setTimeout(()=>{
+      try{closeAllPW();}catch(e){}
+      const points=document.getElementById('hh-final-points');
+      if(points)points.textContent=(Number(G.score)||0).toLocaleString('pt-BR');
+      final.classList.add('show');
+      G._hh6EndingPending=false;
+    },650);
+    return result;
+  };
+
+  /* Também reforça o nome/objetivo da Fase 6 no HUD. */
+  const hh6OldStart=window.HydroHeroStartPhase;
+  if(typeof hh6OldStart==='function'){
+    window.HydroHeroStartPhase=function(phase){
+      const r=hh6OldStart(phase);
+      if(Number(phase)===6){
+        setTimeout(()=>{
+          const b=document.getElementById('phase-badge');if(b)b.textContent='FASE 6 • COMPLEXO DE RESERVAÇÃO CESAN';
+          const m=document.querySelector('#mission-live span');if(m)m.textContent='Proteja os reservatórios, opere as válvulas e garanta o abastecimento final.';
+          const sign=document.getElementById('phase-sign');if(sign){sign.style.display='block';sign.textContent='🏗️ COMPLEXO DE RESERVAÇÃO • MISSÃO FINAL';}
+        },0);
+      }
+      return r;
+    };
+  }
+})();
+</script>
+
+
+<style id="hh-mobile-stability-fix">
+/* ===== MOBILE STABILITY PATCH ===== */
+html,body{
+  width:100%;
+  min-height:100%;
+  margin:0;
+  overflow:hidden!important;
+  overscroll-behavior:none!important;
+  -webkit-overflow-scrolling:auto!important;
+}
+body{position:fixed;inset:0;touch-action:none;}
+#gc{
+  position:fixed!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  max-width:none!important;
+  max-height:none!important;
+}
+/* The water counter was being rendered with a 3D/backdrop-filter layer that
+   can expand into a giant black rectangle on mobile GPU compositors. */
+#water-impact{
+  box-sizing:border-box!important;
+  width:auto!important;
+  min-width:0!important;
+  max-width:46vw!important;
+  height:auto!important;
+  max-height:70px!important;
+  overflow:hidden!important;
+  transform:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  contain:paint!important;
+}
+#water-impact small,#water-impact b{white-space:nowrap!important}
+@media(max-width:768px),((pointer:coarse)){
+  #water-impact{
+    right:8px!important;
+    top:96px!important;
+    bottom:auto!important;
+    padding:7px 9px!important;
+    border-radius:11px!important;
+    background:rgba(3,12,29,.94)!important;
+    box-shadow:0 7px 18px rgba(0,0,0,.28)!important;
+    max-width:38vw!important;
+  }
+  #water-impact small{font-size:.50rem!important}
+  #water-impact b{font-size:1.05rem!important;line-height:1.05!important}
+  /* Keep the profile modal on a stable layout viewport while the keyboard is open. */
+  #pw-profile{
+    position:fixed!important;
+    top:0!important;right:0!important;bottom:0!important;left:0!important;
+    height:100svh!important;
+    min-height:100svh!important;
+    max-height:100svh!important;
+    align-items:flex-start!important;
+    overflow:hidden!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+    transform:none!important;
+  }
+  .profile-panel{
+    width:min(860px,94vw)!important;
+    max-height:calc(100svh - 24px)!important;
+    margin:12px auto!important;
+    overflow-y:auto!important;
+    overscroll-behavior:contain!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+  #nickname-input,#school-input,#class-input{
+    font-size:16px!important;
+    transform:none!important;
+    -webkit-appearance:none!important;
+    appearance:none!important;
+  }
+}
+</style>
+
+<style id="hh-mobile-final-fix">
+/* FINAL MOBILE COMPOSITOR FIX
+   Keep the profile screen completely static while the virtual keyboard is open. */
+@media (pointer:coarse), (max-width:768px){
+  html,body{background:#06101e!important;touch-action:none!important;}
+  body::before{animation:none!important;opacity:.22!important;mix-blend-mode:normal!important;}
+  /* Static decorative layers avoid intermittent GPU compositor flashes. */
+  #cinematic-vignette,#lens-flare-3d,#depth-fog-3d,#scanline-pro,#speed-lines-3d{
+    display:none!important;
+  }
+  #v-home::before{animation:none!important;transform:none!important;inset:0!important;}
+  #v-home .hstage img{animation:none!important;transform:none!important;}
+  .view,.pw,.pw .pan,#hh-story{
+    transition:none!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+  .pw .pan{animation:none!important;}
+  .chip,.ow,#sbars,#mission-live,#water-impact,#mctrl .cb{
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+  #pw-profile, #pw-profile *, #pw-profile *::before, #pw-profile *::after{
+    animation:none!important;
+    transition:none!important;
+  }
+  #pw-profile{
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+    background:rgba(2,9,20,.97)!important;
+    will-change:auto!important;
+    contain:layout paint style!important;
+  }
+  .profile-panel{
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+    will-change:auto!important;
+    contain:layout paint!important;
+  }
+  #nball{
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+    animation:none!important;
+    transform:translateX(-50%)!important;
+    will-change:auto!important;
+  }
+  #penalty-pop{animation:none!important;display:none!important;}
+}
+body.profile-typing::before{animation:none!important;}
+body.profile-typing #pw-profile,
+body.profile-typing #pw-profile *,
+body.profile-typing #pw-profile *::before,
+body.profile-typing #pw-profile *::after{
+  animation:none!important;
+  transition:none!important;
+}
+</style>
+<script>
+/* Freeze only visual/compositor effects while a profile field is being edited.
+   This prevents the Android keyboard from making the initial screen blink. */
+(function(){
+  const ids=['nickname-input','school-input','class-input'];
+  let typingRelease=0;
+  function bind(){
+    ids.forEach(id=>{
+      const el=document.getElementById(id);
+      if(!el || el._hhTypingBound) return;
+      el._hhTypingBound=true;
+      el.addEventListener('focus',()=>{clearTimeout(typingRelease);document.body.classList.add('profile-typing')},{passive:true});
+      // The viewport keeps moving briefly after the virtual keyboard closes.
+      // Delay effects until that animation has completely settled.
+      el.addEventListener('blur',()=>{clearTimeout(typingRelease);typingRelease=setTimeout(()=>document.body.classList.remove('profile-typing'),450)},{passive:true});
+    });
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bind,{once:true}); else bind();
+})();
+</script>
+
+<style id="hh-character-gallery-fix">
+#v-chars .cc.hh-character-available,
+#v-chars .cc.hh-story-villain{opacity:1!important;filter:none!important;pointer-events:auto!important;}
+#v-chars .cc.hh-character-available .cimg,
+#v-chars .cc.hh-story-villain .cimg{opacity:1!important;filter:none!important;}
+#v-chars .hh-character-available .cst{color:#00d68f!important;}
+#v-chars .hh-story-villain .cst{color:#b7ff54!important;}
+</style>
+<script>
+/* Galeria coerente com a seleção inicial: HydroHero e Ayla são jogáveis
+   desde o começo; Capitão Gastão aparece apenas como antagonista. */
+(function(){
+  function fixCharacterGallery(){
+    document.querySelectorAll('#v-chars .cc').forEach(card=>{
+      const name=card.querySelector('.cname');
+      const status=card.querySelector('.cst');
+      if(!name||!status)return;
+      if(/^ayla$/i.test(name.textContent.trim())){
+        card.classList.remove('locked');
+        card.classList.add('hh-character-available');
+        status.className='cst ok';
+        status.textContent='✓ Disponível desde o início • Jogável';
+      }else if(/gast[aã]o/i.test(name.textContent)){
+        card.classList.remove('locked');
+        card.classList.add('hh-story-villain');
+        status.className='cst';
+        status.textContent='⚠ Antagonista da história • Não jogável';
+      }
+    });
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',fixCharacterGallery,{once:true});
+  else fixCharacterGallery();
+  const oldShowView=showView;
+  showView=function(id){const result=oldShowView(id);if(id==='chars')fixCharacterGallery();return result;};
+})();
+</script>
+<script>
+/* ===== CORREÇÃO FINAL — TELA PRETA AO ENTRAR NA FASE =====
+   As extensões do jogo acrescentam várias rotinas ao gameUpdate. No laço
+   original, uma exceção em qualquer uma delas interrompia o requestAnimationFrame
+   antes de render(), deixando somente o fundo escuro e o HUD na tela. */
+(function(){
+  'use strict';
+  let updateErrorShown=false;
+  let renderErrorShown=false;
+
+  gameLoop=function(){
+    if(!gameRunning)return;
+
+    try{
+      gameUpdate();
+    }catch(error){
+      if(!updateErrorShown){
+        updateErrorShown=true;
+        console.error('[HydroHero] Falha de atualização recuperada; a partida continuará.',error);
+      }
+    }
+
+    try{
+      render();
+    }catch(error){
+      if(!renderErrorShown){
+        renderErrorShown=true;
+        console.error('[HydroHero] Falha de renderização recuperada.',error);
+      }
+    }
+
+    animId=requestAnimationFrame(gameLoop);
+  };
+
+  /* Garante o primeiro desenho logo depois que a fase é configurada. */
+  const previousStartPhase=window.HydroHeroStartPhase;
+  if(typeof previousStartPhase==='function'){
+    window.HydroHeroStartPhase=function(phase){
+      updateErrorShown=false;
+      renderErrorShown=false;
+      const result=previousStartPhase(phase);
+      requestAnimationFrame(()=>{
+        if(gameRunning){
+          try{render();}catch(error){
+            if(!renderErrorShown){
+              renderErrorShown=true;
+              console.error('[HydroHero] Falha no primeiro desenho da fase.',error);
+            }
+          }
+        }
+      });
+      return result;
+    };
+  }
+})();
+</script>
+<script>
+/* ===== CORREÇÃO FINAL — BOTÃO JOGAR AGORA =====
+   Há várias versões históricas do menu no mesmo arquivo. Este controlador,
+   executado na fase de captura, impede que manipuladores antigos substituam
+   ou cancelem o início real da partida. */
+(function(){
+  'use strict';
+
+  function clean(value,max){
+    return String(value||'').trim().replace(/\s+/g,' ').slice(0,max);
+  }
+
+  function selectedCharacter(){
+    const selected=document.querySelector('.char-choice.selected');
+    return selected&&selected.dataset.char==='ayla'?'ayla':'hydrohero';
+  }
+
+  function launchPhase(){
+    document.body.classList.remove('profile-typing');
+    const profile=document.getElementById('pw-profile');
+    if(profile)profile.classList.add('off');
+
+    /* O arquivo possui diversas extensoes historicas de HydroHeroStartPhase.
+       Para a primeira fase, o motor principal e o caminho mais confiavel. */
+    G.phase=1;
+    if(typeof startGame==='function'){
+      startGame();
+    }else if(typeof window.HydroHeroStartPhase==='function'){
+      window.HydroHeroStartPhase(1);
+    }else{
+      throw new Error('Rotina de início do HydroHero não encontrada.');
+    }
+  }
+
+  function startWithProfile(event){
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    const nickname=document.getElementById('nickname-input');
+    const school=document.getElementById('school-input');
+    const className=document.getElementById('class-input');
+    const error=document.getElementById('profile-error');
+    const nick=clean(nickname&&nickname.value,24);
+
+    if(!nick){
+      if(error)error.textContent='Digite o nome ou apelido do jogador.';
+      if(nickname)nickname.focus();
+      return;
+    }
+
+    if(error)error.textContent='';
+    G.nickname=nick;
+    G.school=clean(school&&school.value,50);
+    G.className=clean(className&&className.value,20);
+    G.playerCharacter=selectedCharacter();
+
+    try{ launchPhase(); }
+    catch(err){
+      console.error('[HydroHero] Não foi possível iniciar a aventura.',err);
+      if(error)error.textContent='Não foi possível iniciar. Recarregue a página e tente novamente.';
+    }
+  }
+
+  function playNow(event){
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    /* Jogador recorrente: restaura o último perfil e inicia em um clique. */
+    let saved=null;
+    try{
+      const profiles=JSON.parse(localStorage.getItem('hydrohero_profiles_v1')||'[]');
+      if(Array.isArray(profiles)&&profiles.length)saved=profiles[0];
+    }catch(ignore){}
+
+    if(saved&&clean(saved.nickname,24)){
+      G.nickname=clean(saved.nickname,24);
+      G.school=clean(saved.school,50);
+      G.className=clean(saved.className,20);
+      G.playerCharacter=saved.character==='ayla'?'ayla':'hydrohero';
+      try{ launchPhase(); }catch(err){ console.error('[HydroHero] Falha ao iniciar.',err); }
+      return;
+    }
+
+    /* Primeiro acesso: abre a seleção e o botão dela inicia a fase. */
+    if(typeof window.HydroHeroShowProfile==='function')window.HydroHeroShowProfile();
+    else{
+      const profile=document.getElementById('pw-profile');
+      if(profile)profile.classList.remove('off');
+    }
+  }
+
+  function bind(){
+    const play=document.getElementById('btn-play');
+    const phase1=document.getElementById('phase1');
+    const profileStart=document.getElementById('profile-start');
+    if(play){
+      play.dataset.startFix='1';
+      play.onclick=playNow;
+      play.addEventListener('click',playNow,true);
+    }
+    if(phase1){
+      phase1.dataset.startFix='1';
+      phase1.onclick=playNow;
+      phase1.addEventListener('click',playNow,true);
+    }
+    if(profileStart){
+      profileStart.dataset.startFix='1';
+      profileStart.onclick=startWithProfile;
+      profileStart.addEventListener('click',startWithProfile,true);
+    }
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});
+  else bind();
+})();
+</script>
+<style id="hh-canvas-compositor-fix">
+/* Evita a camada preta criada por alguns compositores ao combinar canvas,
+   filter, translateZ, backdrop-filter e overlays fixed. */
+body.game-active #gc{
+  z-index:2!important;
+  filter:none!important;
+  transform:none!important;
+  opacity:1!important;
+  visibility:visible!important;
+  contain:none!important;
+}
+body.game-active::before,
+body.game-active #cinematic-vignette,
+body.game-active #lens-flare-3d,
+body.game-active #depth-fog-3d,
+body.game-active #scanline-pro,
+body.game-active #speed-lines-3d{
+  display:none!important;
+}
+</style>
+<script>
+/* ===== CORRECAO DE CENARIO — RENDERIZACAO RESILIENTE ===== */
+(function(){
+  'use strict';
+  let updateWarned=false,renderWarned=false;
+
+  function resetCanvas(){
+    /* Uma excecao depois de ctx.save() pode deixar transformacoes empilhadas. */
+    for(let i=0;i<32;i++){try{ctx.restore();}catch(ignore){break;}}
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.globalAlpha=1;
+    ctx.globalCompositeOperation='source-over';
+    ctx.filter='none';
+    ctx.shadowBlur=0;
+  }
+
+  function drawOne(item){
+    if(!item||typeof item.draw!=='function')return;
+    ctx.save();
+    try{item.draw();}
+    catch(error){if(!renderWarned)console.warn('[HydroHero] Um elemento visual foi ignorado.',error);}
+    finally{ctx.restore();}
+  }
+
+  function recoveryRender(){
+    if(!GC.width||!GC.height)resize(true);
+    resetCanvas();
+    const s=Math.max(.25,ws());
+    const ground=wy(GND);
+
+    /* Fundo sempre visivel, mesmo se uma extensao do cenario falhar. */
+    const sky=ctx.createLinearGradient(0,0,0,Math.max(1,ground));
+    sky.addColorStop(0,(G.phase||1)===3?'#07536a':(G.phase||1)===2?'#493878':'#176aa3');
+    sky.addColorStop(1,(G.phase||1)===3?'#86d8aa':(G.phase||1)===2?'#efb777':'#bde5f8');
+    ctx.fillStyle=sky;ctx.fillRect(0,0,GC.width,Math.max(1,ground));
+
+    ctx.fillStyle='#fff2a3';ctx.beginPath();ctx.arc(GC.width*.82,GC.height*.14,18*s,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(22,54,75,.48)';
+    (typeof BLDS!=='undefined'?BLDS:[]).forEach(function(b){
+      const x=(b.x-(G.cam||0)*.18)*s,w=b.w*s,h=b.h*s*.52;
+      ctx.fillRect(x,ground-h,w,h);
+    });
+
+    const soil=ctx.createLinearGradient(0,ground,0,GC.height);
+    soil.addColorStop(0,(G.phase||1)===3?'#355e3d':'#745d48');
+    soil.addColorStop(1,(G.phase||1)===3?'#183825':'#3c2b22');
+    ctx.fillStyle=soil;ctx.fillRect(0,ground,GC.width,Math.max(0,GC.height-ground));
+    ctx.fillStyle='#8fa0a7';ctx.fillRect(0,ground-3*s,GC.width,3*s);
+
+    /* Plataformas sao objetos simples e nao dependem das classes de desenho. */
+    (platforms||[]).slice(1).forEach(function(p){
+      ctx.fillStyle='#405865';ctx.fillRect(wx(p.x),wy(p.y),p.w*s,p.h*s);
+      ctx.fillStyle='#6f8790';ctx.fillRect(wx(p.x),wy(p.y),p.w*s,3*s);
+    });
+
+    [movPlats,coins,drops].forEach(function(list){(list||[]).forEach(drawOne);});
+    [streetLeak,houseLeak,bigLeak].forEach(drawOne);
+    [taps,aylas,villains].forEach(function(list){(list||[]).forEach(drawOne);});
+    drawOne(goalFlag);
+    try{drawParts();}catch(ignore){}
+    try{drawFloats();}catch(ignore){}
+    drawOne(player);
+    try{drawMinimap();}catch(ignore){}
+    resetCanvas();
+  }
+
+  gameLoop=function(){
+    if(!gameRunning)return;
+    try{gameUpdate();}
+    catch(error){
+      if(!updateWarned){updateWarned=true;console.error('[HydroHero] Atualizacao recuperada.',error);}
+    }
+    try{render();}
+    catch(error){
+      if(!renderWarned){renderWarned=true;console.error('[HydroHero] Render principal recuperado.',error);}
+      try{recoveryRender();}catch(fallbackError){console.error('[HydroHero] Falha no modo de recuperacao.',fallbackError);}
+    }
+    animId=requestAnimationFrame(gameLoop);
+  };
+
+  /* Exposto apenas para o primeiro quadro disparado pelo controlador anterior. */
+  window.HydroHeroRecoveryRender=recoveryRender;
+})();
+</script>
+
+<script>
+/* ===== HYDROHERO 24 — GAME FEEL / COLISÃO / ANIMAÇÃO / PROGRESSÃO ===== */
+(function(){
+'use strict';
+
+// Compatibility: legacy visual modules may ask for drawWorld().
+// The current engine renders through render(), so this prevents a legacy call from crashing.
+if(typeof window.drawWorld!=='function') window.drawWorld=function(){};
+
+const HH24={
+  maxSpeed:6.45,
+  groundAccel:.36,
+  airAccel:.23,
+  groundBrake:.26,
+  airBrake:.08,
+  gravity:.66,
+  maxFall:18.5,
+  jump:-15.9,
+  doubleJump:-13.6,
+  coyoteFrames:8,
+  bufferFrames:9
+};
+
+function hh24Pressed(){return isK('Space','ArrowUp','KeyW')||MK.jump;}
+
+if(typeof Player!=='undefined'){
+  Player.prototype.update=function(){
+    const ml=isK('ArrowLeft','KeyA')||MK.left;
+    const mr=isK('ArrowRight','KeyD')||MK.right;
+    const jp=hh24Pressed();
+    const ds=isK('ShiftLeft','ShiftRight');
+
+    if(this.coyote==null)this.coyote=HH24.coyoteFrames;
+    if(this.jumpBuffer==null)this.jumpBuffer=0;
+    if(this.landT==null)this.landT=0;
+    if(this.actionT==null)this.actionT=0;
+    if(this.celebrateT==null)this.celebrateT=0;
+    if(this._prevGround==null)this._prevGround=this.onGnd;
+
+    if(this.onGnd)this.coyote=HH24.coyoteFrames;
+    else this.coyote=Math.max(0,this.coyote-1);
+
+    if(jp&&!this._jh)this.jumpBuffer=HH24.bufferFrames;
+    else this.jumpBuffer=Math.max(0,this.jumpBuffer-1);
+
+    if(ds&&!this._dh&&this.dCool<=0&&G.energy>=25){
+      this.dashing=true;this.dT=11;this.dCool=25;
+      this.vx=this.faceR?11.5:-11.5;
+      G.energy=Math.max(0,G.energy-25);
+      if(typeof spawnP==='function')spawnP(this.x+this.w/2,this.y+this.h/2,'rgba(67,220,255,.55)',7,{spd:2,spd2:4,life:14,r:2,r2:3,grav:0,up:0});
+    }
+    this._dh=ds;
+    if(this.dT>0){this.dT--;if(this.dT<=0)this.dashing=false;}
+    if(this.dCool>0)this.dCool--;
+
+    this.moving=!!(ml||mr);
+    if(!this.dashing){
+      const dir=(mr?1:0)-(ml?1:0);
+      const target=dir*HH24.maxSpeed;
+      const accel=this.onGnd?HH24.groundAccel:HH24.airAccel;
+      const brake=this.onGnd?HH24.groundBrake:HH24.airBrake;
+      this.vx+=(target-this.vx)*(dir?accel:brake);
+      if(Math.abs(this.vx)<.035&&!dir)this.vx=0;
+      if(dir){this.faceR=dir>0;this.moving=true;}
+    }
+
+    if(this.jumpBuffer>0){
+      if(this.onGnd||this.coyote>0){
+        this.vy=HH24.jump;this.onGnd=false;this.coyote=0;this.jc=1;this.jumpBuffer=0;
+        if(typeof spawnP==='function')spawnP(this.x+this.w/2,this.y+this.h,'rgba(67,220,255,.72)',9,{spd:.5,spd2:2.4,up:1.8,life:19,r:2,r2:4});
+      }else if(this.jc===1){
+        this.vy=HH24.doubleJump;this.jc=2;this.jumpBuffer=0;
+        if(typeof spawnP==='function')spawnP(this.x+this.w/2,this.y+this.h/2,'rgba(23,111,229,.78)',11,{spd:1,spd2:2.8,up:0,life:17,r:2,r2:4,grav:0});
+      }
+    }
+    this._jh=jp;
+
+    // Variable height, but without the abrupt "brick in the air" feeling.
+    if(!jp&&this.vy<-5.2)this.vy*=.885;
+    if(!this.dashing)this.vy=Math.min(this.vy+HH24.gravity,HH24.maxFall);
+
+    this.x+=this.vx;this.y+=this.vy;
+    this.x=Math.max(0,Math.min(WW-this.w,this.x));
+
+    if(this.icd>0)this.icd--;
+    if(this.invT>0)this.invT--;
+    if(this.landT>0)this.landT--;
+    if(this.actionT>0)this.actionT--;
+    if(this.celebrateT>0)this.celebrateT--;
+    this.cT+=.055;if(this.lSplash>0)this.lSplash--;
+    this.animT++;if(this.animT>6){this.animT=0;this.animF=(this.animF+1)%6;}
+    if(this.dashing&&Math.random()<.62&&typeof spawnP==='function')spawnP(this.x+this.w/2,this.y+this.h/2,'rgba(56,200,255,.34)',2,{spd:.1,spd2:.5,up:.4,life:10,r:3,r2:5,grav:.02});
+    if(!this.dashing&&Math.abs(this.vx)<2)G.energy=Math.min(100,G.energy+.28);
+    if(!this.evolved&&typeof hhTryUnlockCape==='function')hhTryUnlockCape(this);
+  };
+}
+
+// Robust one-way platform collision. The collision uses the previous real Y,
+// instead of reconstructing it from velocity after other systems may have changed vy.
+window.platCollide=function(){
+  const p=player;if(!p)return;
+  const oldGround=!!p.onGnd;
+  const currentBottom=p.y+p.h;
+  const previousY=(p._collisionPrevY==null)?(p.y-p.vy):p._collisionPrevY;
+  const previousBottom=previousY+p.h;
+  p._collisionPrevY=p.y;
+  p.onGnd=false;
+
+  let best=null;
+  const all=[...(platforms||[]),...(movPlats||[])];
+  for(const pl of all){
+    if(!pl||!Number.isFinite(pl.x)||!Number.isFinite(pl.y)||!Number.isFinite(pl.w))continue;
+    const margin=Math.min(9,p.w*.18);
+    const horizontal=(p.x+p.w-margin)>pl.x&&(p.x+margin)<(pl.x+pl.w);
+    const descending=p.vy>=-0.05;
+    const crossed=previousBottom<=pl.y+10&&currentBottom>=pl.y-1;
+    if(horizontal&&descending&&crossed){
+      if(!best||pl.y<best.y)best=pl;
+    }
+  }
+
+  if(best){
+    const impact=Math.max(0,p.vy||0);
+    p.y=best.y-p.h;p.vy=0;p.onGnd=true;p.jc=0;p.coyote=HH24.coyoteFrames;
+    p._collisionPrevY=p.y;
+    if(!oldGround&&impact>2.2)p.landT=7;
+    if(impact>5&&typeof spawnP==='function'){
+      p.lSplash=12;
+      spawnP(p.x+p.w/2,p.y+p.h,'rgba(100,200,255,.42)',7,{spd:.5,spd2:2,up:.65,life:16,r:2,r2:3,grav:.05});
+    }
+    if(Number.isFinite(best.vx))p.x+=best.vx*.7;
+  }else if(p.y+p.h>=GND){
+    const impact=Math.max(0,p.vy||0);
+    p.y=GND-p.h;p.vy=0;p.onGnd=true;p.jc=0;p.coyote=HH24.coyoteFrames;p._collisionPrevY=p.y;
+    if(!oldGround&&impact>2.2)p.landT=7;
+  }
+};
+
+function hh24State(p){
+  if((p.celebrateT||0)>0)return 'celebrate';
+  if((p.actionT||0)>0)return 'action';
+  if((p.landT||0)>0)return 'land';
+  if(!p.onGnd)return (p.vy||0)<0?'jump':'fall';
+  const v=Math.abs(p.vx||0);
+  if(p.dashing||v>4.7)return 'run';
+  if(v>.5)return 'walk';
+  return 'idle';
+}
+
+window.HydroHeroAnimationState=hh24State;
+
+// Preserve the existing sprite-sheet animation, adding readable body poses for
+// landing, action and celebration. Idle/walk/run/jump/fall remain driven by the
+// game's existing full-character frames.
+if(typeof Player!=='undefined'){
+  const hh24BaseDraw=Player.prototype.draw;
+  Player.prototype.draw=function(){
+    const st=hh24State(this);
+    const s=typeof ws==='function'?ws():1;
+    const cx=typeof wx==='function'?wx(this.x+this.w/2):0;
+    const bottom=typeof wy==='function'?wy(this.y+this.h):0;
+    ctx.save();
+    ctx.translate(cx,bottom);
+    if(st==='land'){
+      const k=Math.max(0,Math.min(1,(this.landT||0)/7));
+      ctx.scale(1+.055*k,1-.09*k);
+    }else if(st==='action'){
+      ctx.rotate((this.faceR!==false?1:-1)*-.035);
+      ctx.translate(0,-2*s);
+    }else if(st==='celebrate'){
+      ctx.translate(0,-Math.abs(Math.sin(performance.now()*.014))*7*s);
+      ctx.rotate(Math.sin(performance.now()*.012)*.028);
+    }
+    ctx.translate(-cx,-bottom);
+    hh24BaseDraw.call(this);
+    ctx.restore();
+
+    if(st==='action'){
+      ctx.save();ctx.globalAlpha=.42;ctx.strokeStyle='#43dcff';ctx.lineWidth=2*s;
+      ctx.beginPath();ctx.arc(cx,typeof wy==='function'?wy(this.y+this.h*.48):bottom-45*s,26*s+(10-(this.actionT||0))*1.2*s,0,Math.PI*2);ctx.stroke();ctx.restore();
+    }else if(st==='celebrate'){
+      const y=typeof wy==='function'?wy(this.y-18):bottom-120*s;
+      ctx.save();ctx.textAlign='center';ctx.font=`900 ${Math.round(18*s)}px Nunito,sans-serif`;
+      ctx.fillStyle='#ffd43b';ctx.fillText('★',cx-18*s,y);ctx.fillText('★',cx+20*s,y+5*s);ctx.restore();
+    }
+  };
+}
+
+// Make existing sprite-sheet frame selectors understand landing/action/celebration.
+if(typeof hh23FrameForPlayer==='function'){
+  window.hh24FrameForPlayer=function(p){
+    const st=hh24State(p);
+    if(st==='land')return 1;
+    if(st==='action')return 5;
+    if(st==='celebrate')return Math.floor(performance.now()/130)%2?5:1;
+    return hh23FrameForPlayer(p);
+  };
+}
+
+// Action feedback: pressing E gives the body a short, readable action state.
+window.addEventListener('keydown',function(e){
+  if(e.code==='KeyE'&&typeof player!=='undefined'&&player)player.actionT=10;
+},true);
+
+// Final phase-2 geometry: every visible elevated platform is a real collision platform,
+// and the route to the purple drops is a forgiving staircase rather than a precision jump.
+function hh24FixPhase2(){
+  if(typeof G==='undefined'||Number(G.phase)!==2||typeof platforms==='undefined')return;
+  const p2=[
+    [0,GND,WW,90],
+    [250,330,155,22],
+    [500,278,165,22],
+    [760,326,175,22],
+    [1030,278,180,22],
+    [1290,320,175,22],
+    [1540,270,185,22],
+    [1815,320,180,22],
+    [2070,275,185,22],
+    [2345,322,185,22],
+    [2615,278,190,22],
+    [2880,340,235,22],
+    [3090,300,185,22],
+    [3260,255,210,22],
+    [3515,310,190,22],
+    [3800,282,180,22]
+  ];
+  platforms=p2.map(v=>({x:v[0],y:v[1],w:v[2],h:v[3]}));
+
+  // Reposition only phase-2 drops so each one has a safe landing platform under/near it.
+  if(Array.isArray(drops)&&drops.length>=10){
+    const pos=[
+      [315,245],[570,190],[835,235],[1110,190],[1630,180],
+      [2150,185],[2690,188],[2995,250],[3355,165],[3865,190]
+    ];
+    drops.forEach((d,i)=>{if(pos[i]){d.x=pos[i][0];d.y=pos[i][1];}});
+  }
+}
+window.HydroHeroFixPhase2=hh24FixPhase2;
+
+// Wrap the final phase configurator/starter instead of modifying old versions.
+if(typeof window.HydroHeroConfigurePhase==='function'){
+  const baseCfg24=window.HydroHeroConfigurePhase;
+  window.HydroHeroConfigurePhase=function(phase){
+    const r=baseCfg24.apply(this,arguments);
+    if(Number(phase)===2)hh24FixPhase2();
+    return r;
+  };
+}
+if(typeof window.HydroHeroStartPhase==='function'){
+  const baseStart24=window.HydroHeroStartPhase;
+  window.HydroHeroStartPhase=function(phase){
+    const r=baseStart24.apply(this,arguments);
+    if(Number(phase)===2)hh24FixPhase2();
+    if(player){player._collisionPrevY=player.y;player.landT=0;player.actionT=0;player.celebrateT=0;}
+    return r;
+  };
+}
+
+// Victory gets a short celebration pose before/while the victory panel appears.
+if(typeof doVictory==='function'){
+  const baseVictory24=doVictory;
+  doVictory=function(){if(player)player.celebrateT=90;return baseVictory24.apply(this,arguments);};
+}
+
+// Initialize collision history after a level exists.
+const hh24Init=setInterval(function(){
+  if(typeof player!=='undefined'&&player){player._collisionPrevY=player.y;clearInterval(hh24Init);}
+},50);
+
 })();
 </script>
 
