@@ -3972,12 +3972,17 @@ window.HydroHeroShowProfile=hh13ShowProfile;
 <div id="firebase-status">☁️ Conectando ranking...</div>
 
 <script type="module">
-/* ===== HYDROHERO 14 — FIREBASE / RANKING GLOBAL ===== */
+/* ===== HYDROHERO 28 — RANKING GLOBAL SEGURO / AUTH NÃO BLOQUEANTE =====
+   - O jogo inicia sem esperar Firebase/Auth.
+   - O ranking abre sempre: cache local imediatamente + Firestore em segundo plano.
+   - Autenticação anônima serve SOMENTE para autorizar a escrita em leaderboard/{uid}.
+   - Compatível com as regras atuais: documento = UID autenticado e campos permitidos.
+   - Usa o banco Firestore nomeado "cesan-consciente".
+*/
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
-import { getAnalytics, isSupported as analyticsSupported } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-analytics.js";
 import {
   getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit,
-  getDocs, serverTimestamp, increment
+  getDocs, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 import {
   getAuth, signInAnonymously, onAuthStateChanged
@@ -3993,99 +3998,115 @@ const firebaseConfig = {
   measurementId: "G-SWVNZ88W6L"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
+const HH_RANK_CACHE='hydrohero_global_rank_cache_v28';
+const HH_RANK_QUEUE='hydrohero_rank_queue_v28';
+let db=null, auth=null, firebaseUser=null, firebaseReady=false;
+let rankMode='players', rankRows=[];
+let resolveAuthReady;
+const authReady=new Promise(r=>{resolveAuthReady=r;});
 
-try {
-  if (await analyticsSupported()) getAnalytics(app);
-} catch(e) {}
-
-const statusEl = document.getElementById('firebase-status');
-function setCloudStatus(ok, text){
+const statusEl=document.getElementById('firebase-status');
+function setCloudStatus(kind,text,sticky=false){
   if(!statusEl)return;
-  statusEl.className = ok ? 'online' : 'offline';
-  statusEl.textContent = (ok ? '☁️ ' : '⚠️ ') + text;
-  setTimeout(()=>{ if(statusEl)statusEl.style.opacity='0'; }, 3500);
+  statusEl.className=kind==='online'?'online':'offline';
+  statusEl.textContent=(kind==='online'?'☁️ ':'⚠️ ')+text;
   statusEl.style.opacity='1';
+  if(!sticky)setTimeout(()=>{if(statusEl)statusEl.style.opacity='0';},3200);
 }
-
-let firebaseUser = null;
-let authReadyResolve;
-const authReady = new Promise(r=>authReadyResolve=r);
-
-onAuthStateChanged(auth, user=>{
-  firebaseUser=user||null;
-  if(user){
-    setCloudStatus(true,'Ranking global conectado');
-    authReadyResolve(user);
-  }
-});
-
-try{
-  if(!auth.currentUser) await signInAnonymously(auth);
-}catch(err){
-  console.warn('Firebase Auth indisponível:',err);
-  setCloudStatus(false,'Ranking offline — usando dados locais');
-  authReadyResolve(null);
-}
-
 function cleanNick(v){
-  return (v||'Jogador').trim().replace(/[^\p{L}\p{N}_\- ]/gu,'').slice(0,24);
+  let n=(v||'Jogador').trim().replace(/[^\p{L}\p{N}_\- ]/gu,'').replace(/\s+/g,' ').slice(0,18);
+  if(n.length<3)n=(n+' Jogador').slice(0,18);
+  return n;
 }
 function cleanGroup(v,max=50){return (v||'').trim().replace(/[^\p{L}\p{N}_\- .ºª]/gu,'').replace(/\s+/g,' ').slice(0,max);}
-function profileKey(){const raw=[cleanNick(G.nickname),cleanGroup(G.school),cleanGroup(G.className,20)].join('|').toLocaleLowerCase('pt-BR');let h=2166136261;for(let i=0;i<raw.length;i++){h^=raw.charCodeAt(i);h=Math.imul(h,16777619);}return (h>>>0).toString(36);}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function readJSON(key,fallback){try{const x=JSON.parse(localStorage.getItem(key)||'null');return x??fallback;}catch(e){return fallback;}}
+function writeJSON(key,val){try{localStorage.setItem(key,JSON.stringify(val));}catch(e){}}
+function loadRankCache(){const rows=readJSON(HH_RANK_CACHE,[]);return Array.isArray(rows)?rows:[];}
+function saveRankCache(rows){writeJSON(HH_RANK_CACHE,(rows||[]).slice(0,500));}
+function loadQueue(){const q=readJSON(HH_RANK_QUEUE,[]);return Array.isArray(q)?q:[];}
+function saveQueue(q){writeJSON(HH_RANK_QUEUE,(q||[]).slice(-80));}
 
-async function submitScoreOnline(){
-  try{
-    const user = firebaseUser || await authReady;
-    if(!user || typeof G==='undefined' || !G.nickname)return false;
+function makeScorePayload(){
+  if(typeof G==='undefined'||!G.nickname)return null;
+  const score=Math.max(0,Math.floor(Number(G.score)||0));
+  return {
+    nickname:cleanNick(G.nickname),
+    character:G.playerCharacter==='ayla'?'ayla':'hydrohero',
+    score,
+    highestPhase:Math.max(1,Math.floor(Number(G.phase)||1)),
+    escolaId:cleanGroup(G.school),
+    turmaId:cleanGroup(G.className,20),
+    cidade:cleanGroup(G.city||G.cidade||'',50),
+    bairroId:cleanGroup(G.neighborhood||G.bairro||G.bairroId||'',50),
+    queuedAt:Date.now()
+  };
+}
+function upsertCached(payload,uid){
+  if(!payload)return;
+  const id=uid||('local_'+payload.nickname.toLocaleLowerCase('pt-BR'));
+  const rows=loadRankCache();
+  const i=rows.findIndex(r=>String(r.id||'')===String(id));
+  const old=i>=0?rows[i]:{};
+  const merged={...old,id,uid:uid||old.uid||'',nickname:payload.nickname,character:payload.character,
+    escolaId:payload.escolaId,turmaId:payload.turmaId,cidade:payload.cidade,bairroId:payload.bairroId,
+    bestScore:Math.max(Number(old.bestScore)||0,Number(payload.score)||0),
+    totalScore:(Number(old.totalScore)||0)+(Number(payload.score)||0),
+    gamesPlayed:(Number(old.gamesPlayed)||0)+1,
+    highestPhase:Math.max(Number(old.highestPhase)||1,Number(payload.highestPhase)||1),
+    lastScore:Number(payload.score)||0,updatedAtLocal:Date.now()};
+  if(i>=0)rows[i]=merged;else rows.push(merged);
+  rows.sort((a,b)=>(Number(b.bestScore)||0)-(Number(a.bestScore)||0));
+  saveRankCache(rows);
+}
+function queueScore(payload){if(!payload)return;const q=loadQueue();q.push(payload);saveQueue(q);upsertCached(payload,firebaseUser?.uid||'');}
 
-    const playerKey=profileKey();
-    const ref = doc(db,'leaderboard',`${user.uid}_${playerKey}`);
-    const snap = await getDoc(ref);
-    const old = snap.exists()?snap.data():{};
-    const score = Math.max(0,Math.floor(Number(G.score)||0));
-    const best = Math.max(Number(old.bestScore)||0,score);
+try{
+  const app=initializeApp(firebaseConfig);
+  // IMPORTANTE: seu Firestore é o banco nomeado "cesan-consciente".
+  db=getFirestore(app,'cesan-consciente');
+  auth=getAuth(app);
+  firebaseReady=true;
 
-    await setDoc(ref,{
-      uid:user.uid,
-      playerKey,
-      nickname:cleanNick(G.nickname),
-      school:cleanGroup(G.school),
-      className:cleanGroup(G.className,20),
-      character:G.playerCharacter==='ayla'?'ayla':'hydrohero',
-      bestScore:best,
-      totalScore:(Number(old.totalScore)||0)+score,
-      gamesPlayed:(Number(old.gamesPlayed)||0)+1,
-      highestPhase:Math.max(Number(old.highestPhase)||1,Number(G.phase)||1),
-      lastScore:score,
-      updatedAt:serverTimestamp()
-    },{merge:true});
+  onAuthStateChanged(auth,user=>{
+    firebaseUser=user||null;
+    if(user){
+      resolveAuthReady(user);
+      setCloudStatus('online','Ranking global conectado');
+      flushQueue();
+    }
+  });
 
-    setCloudStatus(true,'Pontuação enviada ao ranking global');
-    return true;
-  }catch(err){
-    console.warn('Falha ao gravar ranking global:',err);
-    setCloudStatus(false,'Sem conexão — pontuação salva localmente');
-    return false;
-  }
+  // Não aguardamos isto: o jogo continua iniciando normalmente.
+  Promise.resolve().then(async()=>{
+    try{
+      if(auth.currentUser){firebaseUser=auth.currentUser;resolveAuthReady(auth.currentUser);return;}
+      const cred=await signInAnonymously(auth);
+      firebaseUser=cred.user;
+      resolveAuthReady(cred.user);
+    }catch(err){
+      console.warn('[HydroHero] Firebase Auth anônimo indisponível:',err);
+      resolveAuthReady(null);
+      setCloudStatus('offline','Ranking visível • envio aguardando autenticação',true);
+    }
+  });
+}catch(err){
+  console.warn('[HydroHero] Firebase não pôde ser inicializado:',err);
+  resolveAuthReady(null);
+  setCloudStatus('offline','Ranking em cache — sincronização pendente',true);
 }
 
 function rankAvatar(character){
-  if(character==='ayla') return (typeof ISRC!=='undefined'&&ISRC.ayla)||'';
+  if(character==='ayla')return (typeof ISRC!=='undefined'&&ISRC.ayla)||'';
   return (typeof ISRC!=='undefined'&&ISRC.hero)||'';
 }
-
-let rankMode='players',rankRows=[];
 function grouped(rows,mode){
   const map=new Map();
-  rows.filter(e=>e.school).forEach(e=>{
-    const school=cleanGroup(e.school)||'Escola não informada',className=cleanGroup(e.className,20)||'Turma não informada';
+  rows.filter(e=>e.escolaId).forEach(e=>{
+    const school=cleanGroup(e.escolaId)||'Escola não informada',className=cleanGroup(e.turmaId,20)||'Turma não informada';
     const key=mode==='schools'?school.toLocaleLowerCase('pt-BR'):`${school}|${className}`.toLocaleLowerCase('pt-BR');
     if(!map.has(key))map.set(key,{school,className:mode==='classes'?className:'',score:0,players:new Set(),games:0,highestPhase:1});
-    const g=map.get(key);g.score+=Number(e.bestScore)||0;g.players.add(`${e.uid||e.id}_${e.playerKey||e.nickname}`);g.games+=Number(e.gamesPlayed)||0;g.highestPhase=Math.max(g.highestPhase,Number(e.highestPhase)||1);
+    const g=map.get(key);g.score+=Number(e.bestScore)||0;g.players.add(String(e.uid||e.id||e.nickname));g.games+=Number(e.gamesPlayed)||0;g.highestPhase=Math.max(g.highestPhase,Number(e.highestPhase)||1);
   });
   return [...map.values()].sort((a,b)=>b.score-a.score||b.players.size-a.players.size);
 }
@@ -4094,71 +4115,113 @@ function drawGlobalRank(){
   list.innerHTML=`<div class="rank-tabs"><button class="rank-tab ${rankMode==='players'?'active':''}" data-rank="players">👤 JOGADORES</button><button class="rank-tab ${rankMode==='classes'?'active':''}" data-rank="classes">🎓 TURMAS</button><button class="rank-tab ${rankMode==='schools'?'active':''}" data-rank="schools">🏫 ESCOLAS</button></div>`;
   list.querySelectorAll('.rank-tab').forEach(b=>b.onclick=()=>{rankMode=b.dataset.rank;drawGlobalRank();});
   const data=rankMode==='players'?rankRows:grouped(rankRows,rankMode);
-  if(!data.length){const d=document.createElement('div');d.className='ri';d.innerHTML='<span class="riname">Ainda não há resultados neste ranking.</span>';list.appendChild(d);return;}
-  const currentUid=firebaseUser?.uid,currentKey=typeof G!=='undefined'&&G.nickname?profileKey():'';
+  if(!data.length){const d=document.createElement('div');d.className='ri';d.innerHTML='<span class="riname">O ranking está pronto. Jogue uma partida para registrar a primeira pontuação.</span>';list.appendChild(d);return;}
+  const mineId=firebaseUser?.uid||'';
   data.slice(0,100).forEach((e,i)=>{
-    const div=document.createElement('div'),mine=rankMode==='players'&&currentUid&&e.uid===currentUid&&String(e.playerKey||'')===currentKey;
+    const div=document.createElement('div'),mine=rankMode==='players'&&mineId&&String(e.id||e.uid||'')===mineId;
     div.className='ri '+(i===0?'gold':i===1?'silver':i===2?'bronze':'')+(mine?' rank-you':'');
     const pos=i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1;
     if(rankMode==='players'){
-      div.innerHTML=`<span class="ripos">${pos}</span><img class="rank-avatar" src="${rankAvatar(e.character)}"><span class="riname">${esc(cleanNick(e.nickname))}${mine?'<span class="global-rank-tag">VOCÊ</span>':''}<small style="display:block;font-size:.55rem;color:rgba(200,228,255,.46)">${esc(cleanGroup(e.school)||'Escola não informada')} • ${esc(cleanGroup(e.className,20)||'Turma não informada')}<br>${e.character==='ayla'?'Ayla':'HydroHero'} • ${Number(e.gamesPlayed)||0} partida(s) • Fase ${Number(e.highestPhase)||1}</small></span><span class="risc">${(Number(e.bestScore)||0).toLocaleString('pt-BR')}</span>`;
+      div.innerHTML=`<span class="ripos">${pos}</span><img class="rank-avatar" src="${rankAvatar(e.character)}"><span class="riname">${esc(cleanNick(e.nickname))}${mine?'<span class="global-rank-tag">VOCÊ</span>':''}<small style="display:block;font-size:.55rem;color:rgba(200,228,255,.46)">${esc(cleanGroup(e.escolaId)||'Escola não informada')} • ${esc(cleanGroup(e.turmaId,20)||'Turma não informada')}<br>${e.character==='ayla'?'Ayla':'HydroHero'} • ${Number(e.gamesPlayed)||0} partida(s) • Fase ${Number(e.highestPhase)||1}</small></span><span class="risc">${(Number(e.bestScore)||0).toLocaleString('pt-BR')}</span>`;
     }else{
       div.innerHTML=`<span class="ripos">${pos}</span><span class="rank-avatar" style="display:grid;place-items:center;font-size:1.35rem">${rankMode==='schools'?'🏫':'🎓'}</span><span class="riname">${esc(rankMode==='schools'?e.school:e.className)}<small style="display:block;font-size:.55rem;color:rgba(200,228,255,.46)">${rankMode==='classes'?esc(e.school)+' • ':''}${e.players.size} jogador(es) • ${e.games} partida(s) • Fase ${e.highestPhase}</small></span><span class="risc">${e.score.toLocaleString('pt-BR')}</span>`;
     }
     list.appendChild(div);
   });
 }
-async function renderGlobalRank(){
-  const list=document.getElementById('rlist');if(!list)return;
-  list.innerHTML='<div class="ri"><span class="riname">☁️ Carregando ranking público...</span></div>';
+
+async function fetchCloudRank(){
+  if(!firebaseReady||!db)return false;
   try{
     const q=query(collection(db,'leaderboard'),orderBy('bestScore','desc'),limit(500));
-    const snap=await getDocs(q);rankRows=[];snap.forEach(d=>rankRows.push({id:d.id,...d.data()}));drawGlobalRank();setCloudStatus(true,'Ranking público atualizado');
-  }catch(err){console.warn('Falha ao carregar ranking global:',err);setCloudStatus(false,'Ranking global indisponível');if(window.__hhLocalRankRenderer)window.__hhLocalRankRenderer();}
+    const snap=await getDocs(q),rows=[];
+    snap.forEach(d=>rows.push({id:d.id,...d.data()}));
+    rankRows=rows;saveRankCache(rows);drawGlobalRank();
+    setCloudStatus('online','Ranking global atualizado');return true;
+  }catch(err){
+    console.warn('[HydroHero] Falha ao ler ranking global:',err);return false;
+  }
+}
+async function waitForAuth(maxMs=8000){
+  if(firebaseUser)return firebaseUser;
+  return await Promise.race([authReady,new Promise(r=>setTimeout(()=>r(null),maxMs))]);
+}
+async function writeScore(payload){
+  if(!firebaseReady||!db||!payload)return false;
+  const user=await waitForAuth();
+  if(!user)return false;
+  try{
+    const ref=doc(db,'leaderboard',user.uid),snap=await getDoc(ref),old=snap.exists()?snap.data():{};
+    // Somente os campos permitidos pelas regras atuais do Firestore.
+    const data={
+      uid:user.uid,
+      nickname:payload.nickname,
+      character:payload.character,
+      bestScore:Math.max(Number(old.bestScore)||0,Number(payload.score)||0),
+      totalScore:(Number(old.totalScore)||0)+(Number(payload.score)||0),
+      gamesPlayed:(Number(old.gamesPlayed)||0)+1,
+      highestPhase:Math.max(Number(old.highestPhase)||1,Number(payload.highestPhase)||1),
+      lastScore:Number(payload.score)||0,
+      updatedAt:serverTimestamp(),
+      escolaId:payload.escolaId||'',
+      turmaId:payload.turmaId||'',
+      cidade:payload.cidade||'',
+      bairroId:payload.bairroId||''
+    };
+    await setDoc(ref,data,{merge:true});
+    upsertCached(payload,user.uid);
+    return true;
+  }catch(err){
+    console.warn('[HydroHero] Pontuação aguardando sincronização:',err);return false;
+  }
+}
+async function flushQueue(){
+  const q=loadQueue();if(!q.length||!firebaseReady)return;
+  const remain=[];
+  for(const p of q){if(!(await writeScore(p)))remain.push(p);}
+  saveQueue(remain);
+  if(!remain.length&&q.length){setCloudStatus('online','Pontuações sincronizadas');fetchCloudRank();}
+}
+async function submitScoreOnline(){
+  const payload=makeScorePayload();if(!payload)return false;
+  upsertCached(payload,firebaseUser?.uid||'');
+  if(await writeScore(payload)){
+    setCloudStatus('online','Pontuação enviada ao ranking global');
+    fetchCloudRank();flushQueue();return true;
+  }
+  queueScore(payload);
+  setCloudStatus('offline','Ranking disponível • sincronização pendente');
+  return false;
+}
+async function renderGlobalRank(){
+  rankRows=loadRankCache();drawGlobalRank();
+  if(!rankRows.length&&window.__hhLocalRankRenderer){try{window.__hhLocalRankRenderer();}catch(e){}}
+  const ok=await fetchCloudRank();
+  if(!ok){rankRows=loadRankCache();drawGlobalRank();setCloudStatus('offline','Ranking disponível em cache',true);}
+  flushQueue();
 }
 
-// Preserve current local renderer as fallback.
-if(typeof window.renderRank==='function'){
-  window.__hhLocalRankRenderer=window.renderRank;
-}
+if(typeof window.renderRank==='function')window.__hhLocalRankRenderer=window.renderRank;
 window.renderRank=renderGlobalRank;
+document.getElementById('btn-rank')?.addEventListener('click',()=>{setTimeout(renderGlobalRank,20);},true);
 
-// Ensure rank screen always refreshes from Firestore.
-document.getElementById('btn-rank')?.addEventListener('click',()=>{
-  setTimeout(renderGlobalRank,70);
-},true);
-
-// Patch score submission at victory/game over.
-// Wait until classic scripts have installed the final functions.
 function installHooks(){
-  if(typeof window.doVictory==='function' && !window.doVictory.__firebaseHook){
-    const old=window.doVictory;
-    const wrapped=function(){
-      submitScoreOnline();
-      return old.apply(this,arguments);
-    };
-    wrapped.__firebaseHook=true;
-    window.doVictory=wrapped;
+  if(typeof window.doVictory==='function'&&!window.doVictory.__firebaseHook){
+    const old=window.doVictory;const wrapped=function(){const r=old.apply(this,arguments);setTimeout(submitScoreOnline,0);return r;};wrapped.__firebaseHook=true;window.doVictory=wrapped;
   }
-  if(typeof window.doGameOver==='function' && !window.doGameOver.__firebaseHook){
-    const old=window.doGameOver;
-    const wrapped=function(){
-      submitScoreOnline();
-      return old.apply(this,arguments);
-    };
-    wrapped.__firebaseHook=true;
-    window.doGameOver=wrapped;
+  if(typeof window.doGameOver==='function'&&!window.doGameOver.__firebaseHook){
+    const old=window.doGameOver;const wrapped=function(){const r=old.apply(this,arguments);setTimeout(submitScoreOnline,0);return r;};wrapped.__firebaseHook=true;window.doGameOver=wrapped;
   }
 }
-setTimeout(installHooks,300);
-setTimeout(installHooks,1200);
+setTimeout(installHooks,300);setTimeout(installHooks,1200);
+window.addEventListener('online',()=>{fetchCloudRank();flushQueue();});
+setTimeout(()=>{fetchCloudRank();flushQueue();},800);
 
-// Optional bridge for debugging / portal integration.
-window.HydroHeroOnline = {
-  submitScore: submitScoreOnline,
-  refreshRanking: renderGlobalRank,
-  get uid(){ return firebaseUser?.uid || null; },
-  get connected(){ return !!firebaseUser; }
+window.HydroHeroFirebase={
+  refreshRank:renderGlobalRank,
+  syncScores:flushQueue,
+  get uid(){return firebaseUser?.uid||null;},
+  get connected(){return !!firebaseUser;}
 };
 </script>
 
