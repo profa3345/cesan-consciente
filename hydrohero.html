@@ -1971,13 +1971,11 @@ window.addEventListener('DOMContentLoaded',()=>{
     updateMapStars();
   });
   showView('home');GC.style.display='block';
-  document.getElementById('btn-play').onclick=startGame;
   document.getElementById('btn-map').onclick=()=>showView('map');
   document.getElementById('btn-chars').onclick=()=>showView('chars');
   document.getElementById('btn-rank').onclick=()=>showView('rank');
   document.getElementById('btn-learn').onclick=()=>showView('learn');
   document.getElementById('back-btn').onclick=()=>{if(G.screen==='game'||G.screen==='paused')goHome();else showView('home');};
-  document.getElementById('phase1').onclick=startGame;
   document.getElementById('bpause').onclick=()=>{if(G.screen==='game')openPW('pw-pause');};
   document.getElementById('bres').onclick=resumeGm;
   document.getElementById('brstp').onclick=restartGame;
@@ -3689,12 +3687,7 @@ function hh13StartConfiguredGame(){
   hh13Starting=false;
   hh13UpdateProfileChip();
 }
-function hh13BindPlayButtons(){
-  const bp=document.getElementById('btn-play');
-  const p1=document.getElementById('phase1');
-  if(bp)bp.onclick=hh13ShowProfile;
-  if(p1)p1.onclick=hh13ShowProfile;
-}
+function hh13BindPlayButtons(){ /* fluxo consolidado no controlador final */ }
 
 /* Mantém nickname/personagem quando initLevel reseta outros dados. */
 if(typeof initLevel==='function'){
@@ -6422,7 +6415,7 @@ drawWorld=function(){
 };
 
 window.HydroHeroResetQuestionHistory=resetQuestionHistory;
-ensureSave();refreshMap();document.querySelectorAll('.cc').forEach(card=>{const name=card.querySelector('.cname'),status=card.querySelector('.cst.lock');if(name&&status&&/gastão/i.test(name.textContent))status.textContent='🔒 Fase 5';});const play=document.getElementById('btn-play');if(play)play.onclick=()=>{resetQuestionHistory();if(typeof window.HydroHeroShowProfile==='function')window.HydroHeroShowProfile();else startPhase(1);};
+ensureSave();refreshMap();document.querySelectorAll('.cc').forEach(card=>{const name=card.querySelector('.cname'),status=card.querySelector('.cst.lock');if(name&&status&&/gastão/i.test(name.textContent))status.textContent='🔒 Fase 5';});
 })();
 </script>
 
@@ -6986,122 +6979,6 @@ body.profile-typing #pw-profile *::after{
   }
 })();
 </script>
-<script>
-/* ===== CORREÇÃO FINAL — BOTÃO JOGAR AGORA =====
-   Há várias versões históricas do menu no mesmo arquivo. Este controlador,
-   executado na fase de captura, impede que manipuladores antigos substituam
-   ou cancelem o início real da partida. */
-(function(){
-  'use strict';
-
-  function clean(value,max){
-    return String(value||'').trim().replace(/\s+/g,' ').slice(0,max);
-  }
-
-  function selectedCharacter(){
-    const selected=document.querySelector('.char-choice.selected');
-    return selected&&selected.dataset.char==='ayla'?'ayla':'hydrohero';
-  }
-
-  function launchPhase(){
-    document.body.classList.remove('profile-typing');
-    const profile=document.getElementById('pw-profile');
-    if(profile)profile.classList.add('off');
-
-    /* O arquivo possui diversas extensoes historicas de HydroHeroStartPhase.
-       Para a primeira fase, o motor principal e o caminho mais confiavel. */
-    G.phase=1;
-    if(typeof startGame==='function'){
-      startGame();
-    }else if(typeof window.HydroHeroStartPhase==='function'){
-      window.HydroHeroStartPhase(1);
-    }else{
-      throw new Error('Rotina de início do HydroHero não encontrada.');
-    }
-  }
-
-  function startWithProfile(event){
-    event.preventDefault();
-    event.stopImmediatePropagation();
-
-    const nickname=document.getElementById('nickname-input');
-    const school=document.getElementById('school-input');
-    const className=document.getElementById('class-input');
-    const error=document.getElementById('profile-error');
-    const nick=clean(nickname&&nickname.value,24);
-
-    if(!nick){
-      if(error)error.textContent='Digite o nome ou apelido do jogador.';
-      if(nickname)nickname.focus();
-      return;
-    }
-
-    if(error)error.textContent='';
-    G.nickname=nick;
-    G.school=clean(school&&school.value,50);
-    G.className=clean(className&&className.value,20);
-    G.playerCharacter=selectedCharacter();
-
-    try{ launchPhase(); }
-    catch(err){
-      console.error('[HydroHero] Não foi possível iniciar a aventura.',err);
-      if(error)error.textContent='Não foi possível iniciar. Recarregue a página e tente novamente.';
-    }
-  }
-
-  function playNow(event){
-    event.preventDefault();
-    event.stopImmediatePropagation();
-
-    /* Jogador recorrente: restaura o último perfil e inicia em um clique. */
-    let saved=null;
-    try{
-      const profiles=JSON.parse(localStorage.getItem('hydrohero_profiles_v1')||'[]');
-      if(Array.isArray(profiles)&&profiles.length)saved=profiles[0];
-    }catch(ignore){}
-
-    if(saved&&clean(saved.nickname,24)){
-      G.nickname=clean(saved.nickname,24);
-      G.school=clean(saved.school,50);
-      G.className=clean(saved.className,20);
-      G.playerCharacter=saved.character==='ayla'?'ayla':'hydrohero';
-      try{ launchPhase(); }catch(err){ console.error('[HydroHero] Falha ao iniciar.',err); }
-      return;
-    }
-
-    /* Primeiro acesso: abre a seleção e o botão dela inicia a fase. */
-    if(typeof window.HydroHeroShowProfile==='function')window.HydroHeroShowProfile();
-    else{
-      const profile=document.getElementById('pw-profile');
-      if(profile)profile.classList.remove('off');
-    }
-  }
-
-  function bind(){
-    const play=document.getElementById('btn-play');
-    const phase1=document.getElementById('phase1');
-    const profileStart=document.getElementById('profile-start');
-    if(play){
-      play.dataset.startFix='1';
-      play.onclick=playNow;
-      play.addEventListener('click',playNow,true);
-    }
-    if(phase1){
-      phase1.dataset.startFix='1';
-      phase1.onclick=playNow;
-      phase1.addEventListener('click',playNow,true);
-    }
-    if(profileStart){
-      profileStart.dataset.startFix='1';
-      profileStart.onclick=startWithProfile;
-      profileStart.addEventListener('click',startWithProfile,true);
-    }
-  }
-
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});
-  else bind();
-})();
-</script>
 <style id="hh-canvas-compositor-fix">
 /* Evita a camada preta criada por alguns compositores ao combinar canvas,
    filter, translateZ, backdrop-filter e overlays fixed. */
@@ -7476,6 +7353,114 @@ const hh24Init=setInterval(function(){
   if(typeof player!=='undefined'&&player){player._collisionPrevY=player.y;clearInterval(hh24Init);}
 },50);
 
+})();
+</script>
+
+
+<script id="hh-start-controller">
+/* ===== HYDROHERO — CONTROLADOR ÚNICO DE INÍCIO ===== */
+(function(){
+'use strict';
+
+function hhClean(value,max){
+  return String(value||'').trim().replace(/\s+/g,' ').slice(0,max);
+}
+
+function hhCloneWithoutLegacyListeners(id){
+  const old=document.getElementById(id);
+  if(!old)return null;
+  const fresh=old.cloneNode(true);
+  old.replaceWith(fresh);
+  return fresh;
+}
+
+function hhSelectedCharacter(){
+  const selected=document.querySelector('.char-choice.selected');
+  return selected&&selected.dataset.char==='ayla'?'ayla':'hydrohero';
+}
+
+function hhLaunchFirstPhase(){
+  document.body.classList.remove('profile-typing');
+  const profile=document.getElementById('pw-profile');
+  if(profile)profile.classList.add('off');
+
+  if(typeof window.HydroHeroResetQuestionHistory==='function'){
+    window.HydroHeroResetQuestionHistory();
+  }
+
+  G.phase=1;
+
+  /* Usa o iniciador de campanha mais recente; startGame fica como fallback. */
+  if(typeof window.HydroHeroStartPhase==='function'){
+    window.HydroHeroStartPhase(1);
+  }else if(typeof startGame==='function'){
+    startGame();
+  }else{
+    throw new Error('Rotina de início do HydroHero não encontrada.');
+  }
+}
+
+function hhOpenProfile(e){
+  if(e){
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  if(typeof window.HydroHeroShowProfile==='function'){
+    window.HydroHeroShowProfile();
+  }else{
+    const profile=document.getElementById('pw-profile');
+    if(profile)profile.classList.remove('off');
+  }
+}
+
+function hhStartWithProfile(e){
+  if(e){
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  const nickname=document.getElementById('nickname-input');
+  const school=document.getElementById('school-input');
+  const className=document.getElementById('class-input');
+  const error=document.getElementById('profile-error');
+
+  const nick=hhClean(nickname&&nickname.value,24);
+  if(!nick){
+    if(error)error.textContent='Digite o nome ou apelido do jogador.';
+    if(nickname)nickname.focus();
+    return;
+  }
+
+  if(error)error.textContent='';
+  G.nickname=nick;
+  G.school=hhClean(school&&school.value,50);
+  G.className=hhClean(className&&className.value,20);
+  G.playerCharacter=hhSelectedCharacter();
+
+  try{
+    hhLaunchFirstPhase();
+  }catch(err){
+    console.error('[HydroHero] Falha ao iniciar a aventura:',err);
+    if(error)error.textContent='Não foi possível iniciar a aventura.';
+  }
+}
+
+function hhBindStartFlow(){
+  const play=hhCloneWithoutLegacyListeners('btn-play');
+  const phase1=hhCloneWithoutLegacyListeners('phase1');
+  const profileStart=hhCloneWithoutLegacyListeners('profile-start');
+
+  if(play)play.addEventListener('click',hhOpenProfile);
+  if(phase1)phase1.addEventListener('click',hhOpenProfile);
+  if(profileStart)profileStart.addEventListener('click',hhStartWithProfile);
+}
+
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',hhBindStartFlow,{once:true});
+}else{
+  hhBindStartFlow();
+}
 })();
 </script>
 
