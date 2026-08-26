@@ -6326,7 +6326,8 @@ document.addEventListener('click',function(e){
 
 const baseShowView=showView;
 showView=function(id){const r=baseShowView(id);if(id==='map')refreshMap();return r;};
-const baseWorld=drawWorld;
+const baseWorld=(typeof window.drawWorld==='function'?window.drawWorld:function(){});
+window.drawWorld=baseWorld;
 drawWorld=function(){
   baseWorld();const p=Number(G.phase)||1;if(p<3)return;ctx.save();
   if(p===3){
