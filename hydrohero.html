@@ -7933,5 +7933,702 @@ console.info('[HydroHero V8] Encerramento cinematográfico carregado.');
 })();
 </script>
 
+
+<style id="hh-v9-style">
+#hh-v9-water{position:fixed;top:74px;right:18px;z-index:22000;padding:8px 12px;border-radius:14px;background:rgba(3,24,45,.88);border:1px solid rgba(67,220,255,.35);color:#eaffff;font:900 12px Nunito;display:none;box-shadow:0 8px 25px rgba(0,0,0,.25)}
+body.game-active #hh-v9-water{display:block}
+#hh-v9-water b{color:#43dcff;font-size:15px}
+#hh-v9-waste{position:fixed;left:50%;top:72px;transform:translateX(-50%);z-index:22000;width:min(390px,62vw);display:none;text-align:center;font:900 10px Nunito;color:#ffd9df}
+body.hh-v9-boss #hh-v9-waste{display:block}
+#hh-v9-waste-track{height:12px;margin-top:4px;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden;border:1px solid rgba(255,90,110,.28)}
+#hh-v9-waste-fill{height:100%;width:0;background:linear-gradient(90deg,#ffd43b,#ff536d);transition:width .15s}
+#hh-v9-tools{position:fixed;right:18px;bottom:18px;z-index:22000;display:flex;gap:7px}
+#hh-v9-tools button{border:1px solid rgba(110,225,255,.28);background:rgba(3,25,47,.9);color:#eafaff;border-radius:12px;padding:8px 10px;font:900 11px Nunito;cursor:pointer}
+#hh-v9-tools button.on{background:#43dcff;color:#032233}
+.hh-v9-toast{position:fixed;left:50%;top:20%;transform:translate(-50%,-10px);z-index:260000;padding:13px 20px;border-radius:16px;background:rgba(4,24,45,.96);border:1px solid rgba(67,220,255,.45);color:#fff;font:900 14px Nunito;text-align:center;opacity:0;pointer-events:none;transition:.25s;box-shadow:0 18px 55px rgba(0,0,0,.42)}
+.hh-v9-toast.show{opacity:1;transform:translate(-50%,0)}
+#hh-v9-evolution{position:fixed;inset:0;z-index:270000;display:none;align-items:center;justify-content:center;background:radial-gradient(circle,rgba(31,147,255,.42),rgba(0,8,25,.96) 60%);text-align:center;color:#fff}
+#hh-v9-evolution.show{display:flex;animation:hhV9Flash .6s ease}
+#hh-v9-evolution h2{font:clamp(34px,7vw,72px) Bangers;color:#ffd43b;letter-spacing:3px;text-shadow:0 0 35px #2dcfff}
+#hh-v9-evolution p{font:900 14px Nunito;max-width:560px;line-height:1.5}
+@keyframes hhV9Flash{0%{filter:brightness(3)}100%{filter:brightness(1)}}
+#hh-v9-ach{position:fixed;right:18px;top:130px;z-index:250000;width:min(310px,80vw);display:flex;flex-direction:column;gap:7px;pointer-events:none}
+.hh-v9-ach-card{padding:10px 12px;border-radius:14px;background:rgba(6,30,52,.96);border:1px solid rgba(255,212,59,.42);color:#fff;font:800 11px Nunito;box-shadow:0 12px 35px rgba(0,0,0,.35);animation:hhV9Ach 4s forwards}
+.hh-v9-ach-card b{display:block;color:#ffd43b;font:900 13px Nunito}
+@keyframes hhV9Ach{0%{opacity:0;transform:translateX(30px)}10%,82%{opacity:1;transform:none}100%{opacity:0;transform:translateX(30px)}}
+</style>
+
+<div id="hh-v9-water">💧 Água protegida: <b id="hh-v9-liters">0 L</b><div style="font-size:8px;opacity:.55">estimativa educativa do jogo</div></div>
+<div id="hh-v9-waste">⚠️ DESPERDÍCIO DO CAPITÃO GASTÃO<div id="hh-v9-waste-track"><div id="hh-v9-waste-fill"></div></div></div>
+<div id="hh-v9-tools"><button id="hh-v9-read">🔊 Ler</button><button id="hh-v9-easy">⭐ Modo fácil</button></div>
+<div id="hh-v9-toast" class="hh-v9-toast"></div>
+<div id="hh-v9-ach"></div>
+<div id="hh-v9-evolution"><div><div style="font-size:70px">⚡💧</div><h2>PODER DA ÁGUA DESPERTADO!</h2><p>HYDROHERO EVOLUIU! A capa vermelha liberou o <strong>HidroImpulso</strong>. Pressione <strong>Q</strong> para avançar com energia da água.</p></div></div>
+
+<script id="hh-v9-gameplay">
+/* ===== HYDROHERO V9 — GAME FEEL + APRENDER FAZENDO ===== */
+(function(){
+'use strict';
+
+const V9={
+  water:0,waste:0,easy:localStorage.getItem('hh_easy_mode')==='1',
+  objects:[],hazards:[],phase:0,lastAct:false,lastQ:false,bossTick:0,
+  achievements:JSON.parse(localStorage.getItem('hh_v9_ach')||'{}'),
+  phaseCorrect:0,phaseAsked:0,phaseLeaks:0,phaseLeaksFixed:0,
+  hydroCool:0
+};
+window.HydroHeroV9=V9;
+
+function toast(msg,ms=1800){
+  const e=document.getElementById('hh-v9-toast');e.innerHTML=msg;e.classList.add('show');
+  clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),ms);
+}
+function updateWater(){
+  const e=document.getElementById('hh-v9-liters');if(e)e.textContent=Math.round(V9.water).toLocaleString('pt-BR')+' L';
+}
+function saveV9(){
+  localStorage.setItem('hh_v9_water',String(Math.round(V9.water)));
+  localStorage.setItem('hh_v9_ach',JSON.stringify(V9.achievements));
+}
+function addWater(liters,msg){
+  V9.water+=liters;updateWater();saveV9();
+  if(msg)toast(`💧 <strong>+${liters} L</strong> ${msg}`);
+}
+function achievement(id,icon,name){
+  if(V9.achievements[id])return;
+  V9.achievements[id]=true;saveV9();
+  const host=document.getElementById('hh-v9-ach'),c=document.createElement('div');
+  c.className='hh-v9-ach-card';c.innerHTML=`${icon} <b>CONQUISTA: ${name}</b>Nova conquista desbloqueada!`;
+  host.appendChild(c);setTimeout(()=>c.remove(),4200);
+}
+function phaseAchievement(p){
+  const data={1:['💧','Guardião Iniciante'],2:['🏫','Protetor da Escola'],3:['🌿','Amigo dos Mananciais'],6:['🏆','Guardião Supremo']};
+  if(data[p])achievement('phase'+p,data[p][0],data[p][1]);
+}
+function rectHit(a,b){return a.x+a.w>b.x&&a.x<b.x+b.w&&a.y+a.h>b.y&&a.y<b.y+b.h}
+function near(o,r=95){
+  if(!player)return false;
+  return Math.abs(player.x+player.w/2-(o.x+o.w/2))<r&&Math.abs(player.y+player.h/2-(o.y+o.h/2))<r;
+}
+function source(x,type,label,liters=100){
+  return {x,y:GND-58,w:48,h:58,type,label,liters,fixed:false,pulse:Math.random()*6.2};
+}
+function valve(x,label='VÁLVULA'){return {x,y:GND-62,w:52,h:62,type:'valve',label,liters:180,fixed:false,pulse:0};}
+
+function setupPhase(){
+  const p=Number(G.phase)||1;
+  if(V9.phase===p&&V9.objects.length)return;
+  V9.phase=p;V9.objects=[];V9.hazards=[];V9.waste=0;V9.bossTick=0;
+  V9.phaseCorrect=0;V9.phaseAsked=0;V9.phaseLeaks=0;V9.phaseLeaksFixed=0;
+  document.body.classList.toggle('hh-v9-boss',p===5);
+
+  if(p===1){
+    V9.objects=[source(620,'tap','TORNEIRA ABERTA',80),source(1880,'tap','TORNEIRA ABERTA',80),source(3380,'tap','TORNEIRA ABERTA',80)];
+  }else if(p===2){
+    V9.objects=[source(540,'school','BEBEDOURO PINGANDO',120),source(1480,'school','TORNEIRA DO BANHEIRO',140),source(2550,'school','VAZAMENTO NA CANTINA',180),source(3680,'school','TORNEIRA DA HORTA',120)];
+    V9.phaseLeaks=V9.objects.length;
+    setTimeout(()=>{if(G.screen==='game')showNPC('<strong>Ayla:</strong> HydroHero! Existem desperdícios pela escola. Aproxime-se e pressione <strong>E</strong> para resolvê-los.',false,4200);},1000);
+  }else if(p===3){
+    V9.hazards=[
+      {x:720,y:GND-22,w:250,h:22,type:'mud',label:'LAMA'},
+      {x:1760,y:GND-28,w:300,h:28,type:'current',label:'CORRENTEZA'},
+      {x:2960,y:GND-34,w:260,h:34,type:'pollution',label:'ÁREA CONTAMINADA'}
+    ];
+    setTimeout(()=>{if(G.screen==='game')showNPC('<strong>Ayla:</strong> Proteja o manancial! Lama reduz sua velocidade, a correnteza empurra e áreas contaminadas devem ser evitadas.',false,4500);},900);
+  }else if(p===4){
+    V9.objects=[source(820,'hidden','VAZAMENTO OCULTO',220),source(2240,'hidden','VAZAMENTO OCULTO',220),source(3650,'hidden','VAZAMENTO OCULTO',220)];
+    V9.phaseLeaks=V9.objects.length;
+    setTimeout(()=>{if(G.screen==='game')showNPC('<strong>Ayla:</strong> O hidrômetro continua girando, mas as torneiras estão fechadas. <strong>🔎 ENCONTRE OS VAZAMENTOS!</strong>',false,4800);},900);
+  }else if(p===5){
+    V9.objects=[source(900,'boss','SABOTAGEM',180),source(2300,'boss','CANO ROMPIDO',240),source(3600,'boss','VÁLVULA ABERTA',220)];
+    V9.phaseLeaks=V9.objects.length;
+    setTimeout(()=>{if(G.screen==='game')showNPC('<strong>Capitão Gastão:</strong> Quero ver você salvar essa água, HydroHero! Feche meus desperdícios antes que o medidor encha!',true,5000);},700);
+  }else if(p===6){
+    V9.objects=[valve(780,'VÁLVULA DE ENTRADA'),valve(2050,'VÁLVULA DO RESERVATÓRIO'),valve(3380,'VÁLVULA DE DISTRIBUIÇÃO')];
+    V9.phaseLeaks=V9.objects.length;
+    setTimeout(()=>{if(G.screen==='game')showNPC('<strong>Ayla:</strong> Missão final! Verifique as válvulas do complexo e estabilize o sistema de reservação.',false,4400);},800);
+  }
+}
+function fixObject(o){
+  if(o.fixed)return;o.fixed=true;V9.phaseLeaksFixed++;
+  const bonus=o.liters||100;addWater(bonus,'DESPERDÍCIO EVITADO!');
+  if(typeof addScore==='function')addScore(100);
+  if(typeof spawnP==='function')spawnP(o.x+o.w/2,o.y,'rgba(67,220,255,.82)',16,{spd:.5,spd2:3,up:1.2,life:22,r:2,r2:4});
+  if(typeof spawnF==='function')spawnF(o.x+o.w/2,o.y,'+100 💧','#43dcff');
+  if(V9.phaseLeaks&&V9.phaseLeaksFixed>=V9.phaseLeaks)achievement('leaks','🔧','Caça-Vazamentos');
+  if(Number(G.phase)===5)V9.waste=Math.max(0,V9.waste-22);
+}
+function interact(){
+  const open=V9.objects.filter(o=>!o.fixed);
+  let target=open.find(o=>near(o,o.type==='hidden'?115:100));
+  if(target){fixObject(target);return true;}
+  return false;
+}
+function mechanicsUpdate(){
+  if(G.screen!=='game'||!player)return;
+  setupPhase();
+  if(V9.hydroCool>0)V9.hydroCool--;
+
+  const act=isK('KeyE')||MK.act;
+  if(act&&!V9.lastAct)interact();
+  V9.lastAct=act;
+
+  // Fase 3: obstáculos ambientais que mudam o controle sem criar saltos impossíveis.
+  if(Number(G.phase)===3){
+    for(const h of V9.hazards){
+      if(rectHit(player,h)){
+        if(h.type==='mud')player.vx*=.72;
+        else if(h.type==='current')player.x+=1.35;
+        else if(h.type==='pollution'){
+          player.vx*=.88;
+          if(!h._warn||performance.now()-h._warn>1800){h._warn=performance.now();toast('☣️ Área contaminada — procure uma rota segura!',1300);}
+        }
+      }
+    }
+  }
+
+  // Fase 5: o vilão cria pressão contínua. Fontes abertas elevam o desperdício.
+  if(Number(G.phase)===5){
+    const open=V9.objects.filter(o=>!o.fixed).length;
+    V9.waste=Math.min(100,V9.waste+open*.010);
+    const f=document.getElementById('hh-v9-waste-fill');if(f)f.style.width=V9.waste+'%';
+    V9.bossTick++;
+    if(V9.bossTick===650){
+      const extra=source(Math.min(4100,player.x+700),'boss','NOVA SABOTAGEM',200);
+      V9.objects.push(extra);V9.phaseLeaks++;
+      showNPC('<strong>Gastão:</strong> Ha! Mais uma torneira aberta!',true,2600);
+    }
+    if(V9.waste>=100){
+      V9.waste=68;
+      G.lives=Math.max(1,(G.lives||3)-1);
+      toast('⚠️ Muito desperdício! Você perdeu uma vida. Feche as fontes rapidamente.',2600);
+      if(typeof updateHUD==='function')updateHUD();
+    }
+  }
+
+  // Habilidade da capa vermelha: Q = HidroImpulso.
+  const q=isK('KeyQ');
+  if(q&&!V9.lastQ&&player.evolved&&V9.hydroCool<=0){
+    player.vx=player.faceR?13.5:-13.5;player.vy=Math.min(player.vy,-2.2);
+    V9.hydroCool=150;
+    if(typeof spawnP==='function')spawnP(player.x+player.w/2,player.y+player.h/2,'rgba(67,220,255,.75)',24,{spd:1,spd2:4,up:.5,life:22,r:2,r2:5,grav:0});
+    toast('⚡ HIDROIMPULSO!',900);
+  }
+  V9.lastQ=q;
+}
+function mechanicsDraw(){
+  if(G.screen!=='game')return;
+  const s=ws(),ground=wy(GND);
+  ctx.save();
+  // obstáculos ambientais
+  V9.hazards.forEach(h=>{
+    const x=wx(h.x),w=h.w*s,y=wy(h.y),hh=h.h*s;
+    if(x+w<0||x>GC.width)return;
+    if(h.type==='mud'){ctx.fillStyle='rgba(90,58,30,.82)';ctx.fillRect(x,y,w,hh);}
+    else if(h.type==='current'){ctx.fillStyle='rgba(44,173,220,.48)';ctx.fillRect(x,y,w,hh);for(let i=0;i<4;i++){ctx.strokeStyle='rgba(220,250,255,.55)';ctx.beginPath();ctx.moveTo(x+(i*.24*w),y+hh*.45);ctx.lineTo(x+(i*.24*w)+35*s,y+hh*.45);ctx.stroke();}}
+    else{ctx.fillStyle='rgba(95,153,61,.55)';ctx.fillRect(x,y,w,hh);ctx.fillStyle='rgba(210,255,160,.8)';ctx.font=`900 ${Math.round(10*s)}px Nunito`;ctx.fillText('☣',x+w/2,y-4*s);}
+  });
+  // objetos de decisão no mundo
+  V9.objects.forEach(o=>{
+    const x=wx(o.x),y=wy(o.y);if(x<-90*s||x>GC.width+90*s)return;
+    if(o.fixed){
+      ctx.globalAlpha=.55;ctx.fillStyle='#22e59b';ctx.beginPath();ctx.arc(x+o.w*s/2,ground-24*s,10*s,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#dfffee';ctx.font=`900 ${Math.round(8*s)}px Nunito`;ctx.textAlign='center';ctx.fillText('✓ RESOLVIDO',x+o.w*s/2,ground-42*s);ctx.globalAlpha=1;return;
+    }
+    const hidden=o.type==='hidden'&&!near(o,170);
+    if(hidden)return;
+    const pulse=.8+Math.sin(performance.now()*.006+o.pulse)*.12;
+    ctx.save();ctx.translate(x+o.w*s/2,ground);
+    ctx.fillStyle=o.type==='valve'?'#e8b84b':'#dfeaf0';
+    ctx.fillRect(-15*s,-46*s,30*s,42*s);
+    ctx.strokeStyle='#ff536d';ctx.lineWidth=4*s;ctx.beginPath();ctx.moveTo(0,-4*s);ctx.lineTo(0,9*s);ctx.stroke();
+    if(o.type!=='valve'){ctx.fillStyle='rgba(67,220,255,.8)';ctx.beginPath();ctx.ellipse(0,16*s,11*s*pulse,5*s*pulse,0,0,Math.PI*2);ctx.fill();}
+    ctx.fillStyle='rgba(3,24,45,.92)';ctx.beginPath();ctx.roundRect(-55*s,-72*s,110*s,20*s,6*s);ctx.fill();
+    ctx.fillStyle='#fff';ctx.font=`900 ${Math.round(7.5*s)}px Nunito`;ctx.textAlign='center';ctx.fillText(o.label,0,-59*s);
+    if(near(o,110)){ctx.fillStyle='#43dcff';ctx.font=`900 ${Math.round(9*s)}px Nunito`;ctx.fillText('[E] RESOLVER',0,-82*s);}
+    ctx.restore();
+  });
+  ctx.restore();
+}
+
+// O último wrapper do loop mantém o motor original e acrescenta apenas as novas mecânicas.
+if(typeof gameUpdate==='function'){
+  const baseUpdate=gameUpdate;
+  gameUpdate=function(){baseUpdate();mechanicsUpdate();};
+}
+if(typeof render==='function'){
+  const baseRender=render;
+  render=function(){baseRender();mechanicsDraw();};
+}
+
+// Game feel: mantém o excelente sistema HH24, mas torna evolução e modo fácil úteis.
+if(typeof Player!=='undefined'&&Player.prototype.update){
+  const basePlayerUpdate=Player.prototype.update;
+  Player.prototype.update=function(){
+    const beforeY=this.y,wasGround=this.onGnd;
+    basePlayerUpdate.call(this);
+    // Capa vermelha dá melhoria pequena, sem quebrar plataformas.
+    if(this.evolved){
+      const limit=V9.easy?7.35:6.95;
+      this.vx=Math.max(-limit,Math.min(limit,this.vx));
+    }
+    // Modo fácil: queda um pouco mais controlada e coyote/buffer generosos.
+    if(V9.easy){
+      if(!this.onGnd&&this.vy>0)this.vy=Math.min(this.vy,16.2);
+      this.coyote=Math.max(this.coyote||0,wasGround?11:0);
+      this.jumpBuffer=Math.max(this.jumpBuffer||0,0);
+    }
+  };
+}
+
+// Inicializa objetos depois que a geometria real de cada fase foi montada.
+if(typeof initLevel==='function'){
+  const baseInit=initLevel;
+  initLevel=function(){V9.objects=[];V9.hazards=[];V9.phase=0;baseInit();setTimeout(setupPhase,0);};
+}
+if(typeof window.HydroHeroStartPhase==='function'){
+  const baseStart=window.HydroHeroStartPhase;
+  window.HydroHeroStartPhase=function(p){V9.objects=[];V9.hazards=[];V9.phase=0;const r=baseStart.apply(this,arguments);setTimeout(setupPhase,30);return r;};
+}
+
+// Conquistas por fase + resumo educativo.
+if(typeof doVictory==='function'){
+  const baseVictory=doVictory;
+  doVictory=function(){
+    const p=Number(G.phase)||1;
+    if(V9.phaseLeaks>0&&V9.phaseLeaksFixed<V9.phaseLeaks&&p!==5){
+      toast(`🔎 Ainda existem ${V9.phaseLeaks-V9.phaseLeaksFixed} desperdício(s) para resolver!`,2200);
+    }
+    const r=baseVictory.apply(this,arguments);
+    phaseAchievement(p);
+    if(p===6)achievement('supreme','🏆','Guardião Supremo');
+    return r;
+  };
+}
+
+// Intercepta respostas para contabilizar "Mestre da Água" sem alterar a regra do quiz.
+document.addEventListener('click',e=>{
+  const b=e.target.closest&&e.target.closest('#qop .qopt');if(!b)return;
+  V9.phaseAsked++;
+  setTimeout(()=>{
+    if(b.classList.contains('ok'))V9.phaseCorrect++;
+    if(V9.phaseAsked>=3&&V9.phaseCorrect>=3)achievement('master-'+(G.phase||1),'⭐','Mestre da Água');
+  },20);
+},true);
+
+// Evolução cinematográfica da capa.
+if(typeof showEvoBadge==='function'){
+  const baseEvo=showEvoBadge;
+  showEvoBadge=function(){
+    baseEvo();
+    const ov=document.getElementById('hh-v9-evolution');ov.classList.add('show');
+    setTimeout(()=>ov.classList.remove('show'),2800);
+  };
+}
+
+// Acessibilidade: leitura da pergunta atual / mensagem de missão.
+function speakCurrent(){
+  if(!('speechSynthesis'in window)){toast('🔊 Leitura em voz alta não disponível neste navegador.');return;}
+  speechSynthesis.cancel();
+  const q=document.getElementById('qtx');
+  const opts=[...document.querySelectorAll('#qop .qopt')].map((x,i)=>`Opção ${i+1}: ${x.textContent}`);
+  let text=(q&&!document.getElementById('pw-q').classList.contains('off'))?`${q.textContent}. ${opts.join('. ')}`:'';
+  if(!text){
+    const mission=document.querySelector('#mission-live span');
+    text=mission?mission.textContent:'HydroHero. Porque cada gota conta.';
+  }
+  const u=new SpeechSynthesisUtterance(text);u.lang='pt-BR';u.rate=.9;speechSynthesis.speak(u);
+}
+document.getElementById('hh-v9-read').onclick=speakCurrent;
+const easy=document.getElementById('hh-v9-easy');
+function syncEasy(){easy.classList.toggle('on',V9.easy);easy.textContent=V9.easy?'⭐ Fácil: ON':'⭐ Modo fácil';}
+easy.onclick=()=>{V9.easy=!V9.easy;localStorage.setItem('hh_easy_mode',V9.easy?'1':'0');syncEasy();toast(V9.easy?'⭐ Modo fácil ativado: controles mais tolerantes.':'Modo normal ativado.');};
+syncEasy();
+
+// Água protegida persiste na campanha.
+V9.water=Number(localStorage.getItem('hh_v9_water'))||0;updateWater();
+
+// Acrescenta água protegida às ações antigas do motor (torneiras/leaks) observando mudanças.
+let lastTaps=0,lastStreet=false,lastHouse=false,lastBig=false;
+setInterval(()=>{
+  if(typeof G==='undefined'||G.screen!=='game')return;
+  if(G.taps>lastTaps){addWater((G.taps-lastTaps)*90,'TORNEIRA FECHADA!');lastTaps=G.taps;}
+  if(G.streetFixed&&!lastStreet){addWater(220,'VAZAMENTO COMUNICADO!');lastStreet=true;}
+  if(G.houseFixed&&!lastHouse){addWater(180,'VAZAMENTO IDENTIFICADO!');lastHouse=true;}
+  if(G.bigLeakFixed&&!lastBig){addWater(300,'GRANDE VAZAMENTO CONTROLADO!');lastBig=true;}
+},350);
+
+// Reset dos observadores por fase.
+const oldSetup=setupPhase;
+setupPhase=function(){
+  const p=Number(G.phase)||1;
+  if(V9.phase!==p){lastTaps=G.taps||0;lastStreet=!!G.streetFixed;lastHouse=!!G.houseFixed;lastBig=!!G.bigLeakFixed;}
+  oldSetup();
+};
+
+// Final V8 mostra também impacto educativo.
+const finalStats=document.querySelector('#hh-v8-ending .hh-v8-stats');
+if(finalStats&&!document.getElementById('hh-v9-final-water')){
+  const d=document.createElement('div');d.className='hh-v8-stat';d.id='hh-v9-final-water';
+  d.innerHTML='<b id="hh-v9-final-liters">0 L</b><span>Água protegida*</span>';finalStats.appendChild(d);
+}
+if(typeof window.HydroHeroShowFinalEnding==='function'){
+  const oldFinal=window.HydroHeroShowFinalEnding;
+  window.HydroHeroShowFinalEnding=function(){
+    const e=document.getElementById('hh-v9-final-liters');if(e)e.textContent=Math.round(V9.water).toLocaleString('pt-BR')+' L';
+    return oldFinal.apply(this,arguments);
+  };
+}
+
+console.info('[HydroHero V9] Game feel, decisões no mundo, mecânicas por fase, Gastão boss, Ayla investigação, Água Protegida, conquistas, evolução e acessibilidade carregados.');
+})();
+</script>
+
+
+<script id="hh-v10-phase1-music">
+/* ===== HYDROHERO V10 — TRILHA EXCLUSIVA DA FASE 1 ===== */
+(function(){
+'use strict';
+
+const HH_PHASE1_MUSIC = new Audio("audio/fase1.mp3");
+HH_PHASE1_MUSIC.loop = true;
+HH_PHASE1_MUSIC.preload = "auto";
+HH_PHASE1_MUSIC.volume = 0.48;
+
+let hhMusicUnlocked = false;
+
+function hhPhase1ShouldPlay(){
+  try {
+    return document.body.classList.contains('game-active') &&
+           Number(G.phase || 1) === 1 &&
+           G.screen === 'game';
+  } catch(e) {
+    return false;
+  }
+}
+
+function hhSyncPhase1Music(){
+  if(hhPhase1ShouldPlay()){
+    if(HH_PHASE1_MUSIC.paused){
+      HH_PHASE1_MUSIC.play().then(()=>{hhMusicUnlocked=true;}).catch(()=>{});
+    }
+  } else {
+    if(!HH_PHASE1_MUSIC.paused) HH_PHASE1_MUSIC.pause();
+    if(Number((window.G&&G.phase)||1)!==1) HH_PHASE1_MUSIC.currentTime = 0;
+  }
+}
+
+/* O primeiro gesto real do jogador libera áudio nos navegadores modernos. */
+['pointerdown','keydown','touchstart'].forEach(type=>{
+  document.addEventListener(type,function unlock(){
+    if(hhPhase1ShouldPlay()) hhSyncPhase1Music();
+  },{passive:true});
+});
+
+/* Sincroniza com troca de fase, pausa, menu e início do jogo. */
+setInterval(hhSyncPhase1Music,300);
+
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden) HH_PHASE1_MUSIC.pause();
+  else hhSyncPhase1Music();
+});
+
+window.HydroHeroPhase1Music = HH_PHASE1_MUSIC;
+window.HydroHeroSyncPhase1Music = hhSyncPhase1Music;
+
+console.info('[HydroHero V10] Música da Fase 1 carregada em loop.');
+})();
+</script>
+
+
+<script id="hh-v11-phase2-music">
+/* ===== HYDROHERO V11 — TRILHA EXCLUSIVA DA FASE 2 ===== */
+(function(){
+'use strict';
+const HH_PHASE2_MUSIC = new Audio("audio/fase2.mp3");
+HH_PHASE2_MUSIC.loop = true;
+HH_PHASE2_MUSIC.preload = "auto";
+HH_PHASE2_MUSIC.volume = 0.20;
+
+function shouldPlay(){
+  try {
+    return document.body.classList.contains('game-active') &&
+           Number(G.phase || 1) === 2 &&
+           G.screen === 'game';
+  } catch(e) { return false; }
+}
+function sync(){
+  if(shouldPlay()){
+    if(HH_PHASE2_MUSIC.paused) HH_PHASE2_MUSIC.play().catch(()=>{});
+  } else {
+    if(!HH_PHASE2_MUSIC.paused) HH_PHASE2_MUSIC.pause();
+    try{ if(Number(G.phase||1)!==2) HH_PHASE2_MUSIC.currentTime=0; }catch(e){}
+  }
+}
+['pointerdown','keydown','touchstart'].forEach(t=>document.addEventListener(t,sync,{passive:true}));
+setInterval(sync,300);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)HH_PHASE2_MUSIC.pause();else sync();});
+window.HydroHeroPhase2Music=HH_PHASE2_MUSIC;
+window.HydroHeroSyncPhase2Music=sync;
+console.info('[HydroHero V11] Música da Fase 2 carregada em loop.');
+})();
+</script>
+
+
+<script id="hh-v12-phase3-music">
+/* ===== HYDROHERO V12 — TRILHA EXCLUSIVA DA FASE 3 ===== */
+(function(){
+'use strict';
+const HH_PHASE3_MUSIC = new Audio("audio/fase3.mp3");
+HH_PHASE3_MUSIC.loop = true;
+HH_PHASE3_MUSIC.preload = "auto";
+HH_PHASE3_MUSIC.volume = 0.18;
+
+function shouldPlay(){
+  try {
+    return document.body.classList.contains('game-active') &&
+           Number(G.phase || 1) === 3 &&
+           G.screen === 'game';
+  } catch(e) { return false; }
+}
+function sync(){
+  if(shouldPlay()){
+    /* garante que as trilhas anteriores não se sobreponham */
+    try{ if(window.HydroHeroPhase1Music) window.HydroHeroPhase1Music.pause(); }catch(e){}
+    try{ if(window.HydroHeroPhase2Music) window.HydroHeroPhase2Music.pause(); }catch(e){}
+    if(HH_PHASE3_MUSIC.paused) HH_PHASE3_MUSIC.play().catch(()=>{});
+  } else {
+    if(!HH_PHASE3_MUSIC.paused) HH_PHASE3_MUSIC.pause();
+    try{ if(Number(G.phase||1)!==3) HH_PHASE3_MUSIC.currentTime=0; }catch(e){}
+  }
+}
+['pointerdown','keydown','touchstart'].forEach(t =>
+  document.addEventListener(t,sync,{passive:true})
+);
+setInterval(sync,300);
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden) HH_PHASE3_MUSIC.pause();
+  else sync();
+});
+window.HydroHeroPhase3Music = HH_PHASE3_MUSIC;
+window.HydroHeroSyncPhase3Music = sync;
+console.info('[HydroHero V12] Música da Fase 3 carregada em loop.');
+})();
+</script>
+
+
+<script id="hh-v13-phase4-music">
+/* ===== HYDROHERO V13 — TRILHA EXCLUSIVA DA FASE 4 ===== */
+(function(){
+'use strict';
+const HH_PHASE4_MUSIC = new Audio("audio/fase4.mp3");
+HH_PHASE4_MUSIC.loop = true;
+HH_PHASE4_MUSIC.preload = "auto";
+/* Faixa original ~-15 dBFS: volume reduzido para trilha ambiente. */
+HH_PHASE4_MUSIC.volume = 0.18;
+
+function shouldPlay(){
+  try {
+    return document.body.classList.contains('game-active') &&
+           Number(G.phase || 1) === 4 &&
+           G.screen === 'game';
+  } catch(e) { return false; }
+}
+function sync(){
+  if(shouldPlay()){
+    try{ if(window.HydroHeroPhase1Music) window.HydroHeroPhase1Music.pause(); }catch(e){}
+    try{ if(window.HydroHeroPhase2Music) window.HydroHeroPhase2Music.pause(); }catch(e){}
+    try{ if(window.HydroHeroPhase3Music) window.HydroHeroPhase3Music.pause(); }catch(e){}
+    if(HH_PHASE4_MUSIC.paused) HH_PHASE4_MUSIC.play().catch(()=>{});
+  } else {
+    if(!HH_PHASE4_MUSIC.paused) HH_PHASE4_MUSIC.pause();
+    try{ if(Number(G.phase||1)!==4) HH_PHASE4_MUSIC.currentTime=0; }catch(e){}
+  }
+}
+['pointerdown','keydown','touchstart'].forEach(t =>
+  document.addEventListener(t,sync,{passive:true})
+);
+setInterval(sync,300);
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden) HH_PHASE4_MUSIC.pause();
+  else sync();
+});
+window.HydroHeroPhase4Music = HH_PHASE4_MUSIC;
+window.HydroHeroSyncPhase4Music = sync;
+console.info('[HydroHero V13] Música da Fase 4 carregada em loop.');
+})();
+</script>
+
+
+<script id="hh-v14-phase5-music">
+/* ===== HYDROHERO V14 — TRILHA EXCLUSIVA DA FASE 5 ===== */
+(function(){
+'use strict';
+const HH_PHASE5_MUSIC = new Audio("audio/fase5.mp3");
+HH_PHASE5_MUSIC.loop = true;
+HH_PHASE5_MUSIC.preload = "auto";
+/* Faixa forte (~-13,8 dBFS): reduzida para fundo da batalha sem cobrir efeitos/falas. */
+HH_PHASE5_MUSIC.volume = 0.16;
+
+function shouldPlay(){
+  try {
+    return document.body.classList.contains('game-active') &&
+           Number(G.phase || 1) === 5 &&
+           G.screen === 'game';
+  } catch(e) { return false; }
+}
+function sync(){
+  if(shouldPlay()){
+    try{ if(window.HydroHeroPhase1Music) window.HydroHeroPhase1Music.pause(); }catch(e){}
+    try{ if(window.HydroHeroPhase2Music) window.HydroHeroPhase2Music.pause(); }catch(e){}
+    try{ if(window.HydroHeroPhase3Music) window.HydroHeroPhase3Music.pause(); }catch(e){}
+    try{ if(window.HydroHeroPhase4Music) window.HydroHeroPhase4Music.pause(); }catch(e){}
+    if(HH_PHASE5_MUSIC.paused) HH_PHASE5_MUSIC.play().catch(()=>{});
+  } else {
+    if(!HH_PHASE5_MUSIC.paused) HH_PHASE5_MUSIC.pause();
+    try{ if(Number(G.phase||1)!==5) HH_PHASE5_MUSIC.currentTime=0; }catch(e){}
+  }
+}
+['pointerdown','keydown','touchstart'].forEach(t =>
+  document.addEventListener(t,sync,{passive:true})
+);
+setInterval(sync,300);
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden) HH_PHASE5_MUSIC.pause();
+  else sync();
+});
+window.HydroHeroPhase5Music = HH_PHASE5_MUSIC;
+window.HydroHeroSyncPhase5Music = sync;
+console.info('[HydroHero V14] Música da Fase 5 carregada em loop.');
+})();
+</script>
+
+
+<script id="hh-v15-phase6-music">
+/* ===== HYDROHERO V15 — TRILHA EXCLUSIVA DA FASE 6 ===== */
+(function(){
+'use strict';
+const HH_PHASE6_MUSIC = new Audio("audio/fase6.mp3");
+HH_PHASE6_MUSIC.loop = true;
+HH_PHASE6_MUSIC.preload = "auto";
+/* Faixa forte (~-12,9 dBFS): volume reduzido para trilha de fundo. */
+HH_PHASE6_MUSIC.volume = 0.15;
+
+function shouldPlay(){
+  try {
+    return document.body.classList.contains('game-active') &&
+           Number(G.phase || 1) === 6 &&
+           G.screen === 'game';
+  } catch(e) { return false; }
+}
+
+function stopOtherPhaseMusic(){
+  try{ if(window.HydroHeroPhase1Music) window.HydroHeroPhase1Music.pause(); }catch(e){}
+  try{ if(window.HydroHeroPhase2Music) window.HydroHeroPhase2Music.pause(); }catch(e){}
+  try{ if(window.HydroHeroPhase3Music) window.HydroHeroPhase3Music.pause(); }catch(e){}
+  try{ if(window.HydroHeroPhase4Music) window.HydroHeroPhase4Music.pause(); }catch(e){}
+  try{ if(window.HydroHeroPhase5Music) window.HydroHeroPhase5Music.pause(); }catch(e){}
+}
+
+function sync(){
+  if(shouldPlay()){
+    stopOtherPhaseMusic();
+    if(HH_PHASE6_MUSIC.paused) HH_PHASE6_MUSIC.play().catch(()=>{});
+  } else {
+    if(!HH_PHASE6_MUSIC.paused) HH_PHASE6_MUSIC.pause();
+    try{ if(Number(G.phase||1)!==6) HH_PHASE6_MUSIC.currentTime=0; }catch(e){}
+  }
+}
+
+['pointerdown','keydown','touchstart'].forEach(t =>
+  document.addEventListener(t,sync,{passive:true})
+);
+setInterval(sync,300);
+
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden) HH_PHASE6_MUSIC.pause();
+  else sync();
+});
+
+window.HydroHeroPhase6Music = HH_PHASE6_MUSIC;
+window.HydroHeroSyncPhase6Music = sync;
+console.info('[HydroHero V15] Música exclusiva da Fase 6 carregada em loop.');
+})();
+</script>
+
+
+<script id="hh-v16-ending-music">
+/* ===== HYDROHERO V16 — MÚSICA DO ENCERRAMENTO ===== */
+(function(){
+'use strict';
+
+const HH_ENDING_MUSIC = new Audio("audio/encerramento.mp3");
+HH_ENDING_MUSIC.loop = true;
+HH_ENDING_MUSIC.preload = "auto";
+/* Música de encerramento: presente, mas abaixo de diálogos e efeitos. */
+HH_ENDING_MUSIC.volume = 0.20;
+
+function stopAllPhaseMusic(){
+  for(let i=1;i<=6;i++){
+    try{
+      const a=window['HydroHeroPhase'+i+'Music'];
+      if(a){ a.pause(); a.currentTime=0; }
+    }catch(e){}
+  }
+}
+
+function playEndingMusic(){
+  stopAllPhaseMusic();
+  try{ HH_ENDING_MUSIC.currentTime=0; }catch(e){}
+  HH_ENDING_MUSIC.play().catch(()=>{});
+}
+
+function stopEndingMusic(){
+  if(!HH_ENDING_MUSIC.paused) HH_ENDING_MUSIC.pause();
+  try{ HH_ENDING_MUSIC.currentTime=0; }catch(e){}
+}
+
+/* Integra diretamente com a comemoração cinematográfica V8.
+   A música começa somente depois de concluir a Fase 6. */
+if(typeof window.HydroHeroShowFinalEnding==='function'){
+  const baseEnding=window.HydroHeroShowFinalEnding;
+  window.HydroHeroShowFinalEnding=function(){
+    playEndingMusic();
+    return baseEnding.apply(this,arguments);
+  };
+}
+
+/* Segurança adicional para o final aberto internamente pelo wrapper de vitória. */
+const ending=document.getElementById('hh-v8-ending');
+if(ending){
+  const observer=new MutationObserver(()=>{
+    if(ending.classList.contains('show')){
+      if(HH_ENDING_MUSIC.paused) playEndingMusic();
+    } else {
+      stopEndingMusic();
+    }
+  });
+  observer.observe(ending,{attributes:true,attributeFilter:['class']});
+}
+
+/* Ao voltar ao menu, ranking ou reiniciar, a música final é encerrada. */
+['hh-v8-menu','hh-v8-rank','hh-v8-replay'].forEach(id=>{
+  const b=document.getElementById(id);
+  if(b)b.addEventListener('click',stopEndingMusic,true);
+});
+
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden) HH_ENDING_MUSIC.pause();
+  else if(ending&&ending.classList.contains('show')) HH_ENDING_MUSIC.play().catch(()=>{});
+});
+
+window.HydroHeroEndingMusic=HH_ENDING_MUSIC;
+window.HydroHeroPlayEndingMusic=playEndingMusic;
+window.HydroHeroStopEndingMusic=stopEndingMusic;
+
+console.info('[HydroHero V16] Música exclusiva do encerramento carregada.');
+})();
+</script>
+
 </body>
 </html>
