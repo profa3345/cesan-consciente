@@ -3972,11 +3972,12 @@ window.HydroHeroShowProfile=hh13ShowProfile;
 <div id="firebase-status">☁️ Conectando ranking...</div>
 
 <script type="module">
-/* ===== HYDROHERO 28 — RANKING GLOBAL SEGURO / AUTH NÃO BLOQUEANTE =====
+/* ===== HYDROHERO 29 — RANKING INTEGRADO À SESSÃO DO PORTAL =====
+   - O HydroHero NÃO cria usuário anônimo.
+   - Reutiliza a sessão Firebase já autenticada no portal Água Consciente.
    - O jogo inicia sem esperar Firebase/Auth.
    - O ranking abre sempre: cache local imediatamente + Firestore em segundo plano.
-   - Autenticação anônima serve SOMENTE para autorizar a escrita em leaderboard/{uid}.
-   - Compatível com as regras atuais: documento = UID autenticado e campos permitidos.
+   - Documento do ranking = UID do usuário autenticado no portal.
    - Usa o banco Firestore nomeado "cesan-consciente".
 */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
@@ -3985,7 +3986,7 @@ import {
   getDocs, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 import {
-  getAuth, signInAnonymously, onAuthStateChanged
+  getAuth, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 
 const firebaseConfig = {
@@ -3998,8 +3999,8 @@ const firebaseConfig = {
   measurementId: "G-SWVNZ88W6L"
 };
 
-const HH_RANK_CACHE='hydrohero_global_rank_cache_v28';
-const HH_RANK_QUEUE='hydrohero_rank_queue_v28';
+const HH_RANK_CACHE='hydrohero_global_rank_cache_v29';
+const HH_RANK_QUEUE='hydrohero_rank_queue_v29';
 let db=null, auth=null, firebaseUser=null, firebaseReady=false;
 let rankMode='players', rankRows=[];
 let resolveAuthReady;
@@ -4068,28 +4069,40 @@ try{
   auth=getAuth(app);
   firebaseReady=true;
 
+  // Reutiliza exclusivamente a sessão já criada pelo portal Água Consciente.
+  // Nenhum signIn é executado pelo jogo.
+  let authResolved=false;
   onAuthStateChanged(auth,user=>{
     firebaseUser=user||null;
+    if(!authResolved){
+      authResolved=true;
+      resolveAuthReady(firebaseUser);
+    }
     if(user){
-      resolveAuthReady(user);
-      setCloudStatus('online','Ranking global conectado');
+      // Se o perfil do jogo ainda não tiver nickname, aproveita o nome/e-mail do portal.
+      try{
+        if(typeof G!=='undefined'){
+          if(!G.nickname || G.nickname==='Jogador'){
+            const portalName=(user.displayName||user.email?.split('@')[0]||'Jogador').trim();
+            if(portalName) G.nickname=cleanNick(portalName);
+          }
+          G.portalUid=user.uid;
+          G.portalEmail=user.email||'';
+          G.portalDisplayName=user.displayName||'';
+        }
+      }catch(e){}
+      setCloudStatus('online','Ranking conectado à sua conta do portal');
       flushQueue();
+      fetchCloudRank();
+    }else{
+      setCloudStatus('offline','Entre no portal para sincronizar sua pontuação',true);
     }
   });
 
-  // Não aguardamos isto: o jogo continua iniciando normalmente.
-  Promise.resolve().then(async()=>{
-    try{
-      if(auth.currentUser){firebaseUser=auth.currentUser;resolveAuthReady(auth.currentUser);return;}
-      const cred=await signInAnonymously(auth);
-      firebaseUser=cred.user;
-      resolveAuthReady(cred.user);
-    }catch(err){
-      console.warn('[HydroHero] Firebase Auth anônimo indisponível:',err);
-      resolveAuthReady(null);
-      setCloudStatus('offline','Ranking visível • envio aguardando autenticação',true);
-    }
-  });
+  // currentUser pode já estar disponível antes do primeiro callback.
+  if(auth.currentUser){
+    firebaseUser=auth.currentUser;
+  }
 }catch(err){
   console.warn('[HydroHero] Firebase não pôde ser inicializado:',err);
   resolveAuthReady(null);
@@ -4142,7 +4155,7 @@ async function fetchCloudRank(){
     console.warn('[HydroHero] Falha ao ler ranking global:',err);return false;
   }
 }
-async function waitForAuth(maxMs=8000){
+async function waitForAuth(maxMs=2500){
   if(firebaseUser)return firebaseUser;
   return await Promise.race([authReady,new Promise(r=>setTimeout(()=>r(null),maxMs))]);
 }
@@ -4190,7 +4203,7 @@ async function submitScoreOnline(){
     fetchCloudRank();flushQueue();return true;
   }
   queueScore(payload);
-  setCloudStatus('offline','Ranking disponível • sincronização pendente');
+  setCloudStatus('offline',firebaseUser?'Ranking disponível • sincronização pendente':'Ranking disponível • entre no portal para enviar sua pontuação');
   return false;
 }
 async function renderGlobalRank(){
@@ -4221,7 +4234,9 @@ window.HydroHeroFirebase={
   refreshRank:renderGlobalRank,
   syncScores:flushQueue,
   get uid(){return firebaseUser?.uid||null;},
-  get connected(){return !!firebaseUser;}
+  get email(){return firebaseUser?.email||null;},
+  get connected(){return !!firebaseUser;},
+  get usesPortalSession(){return true;}
 };
 </script>
 
