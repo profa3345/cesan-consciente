@@ -27,7 +27,7 @@
   --text:#0f172a;--muted:#64748b;--border:#e2e8f0;
   --r:12px;--rl:18px;
   font-family:'Outfit','Segoe UI',system-ui,sans-serif;
-  color-scheme:light dark;
+  color-scheme:light;
 }
 /* ── DARK MODE ── */
 @media(prefers-color-scheme:dark){
@@ -390,6 +390,25 @@ body.high-contrast .nav-item{color:rgba(255,255,255,.8)}
 /* ── LARGE FONT ── */
 body.large-font{font-size:18px}
 body.large-font .form-input,.large-font .quiz-option,.large-font .feed-title,.large-font .rank-name{font-size:16px!important}
+/* ── MOBILE HARDENING ── */
+html{height:100%;-webkit-text-size-adjust:100%;}
+body{min-height:100dvh;}
+button,input,textarea,select{touch-action:manipulation;}
+input,textarea,select{font-size:16px;} /* evita zoom/flicker no iOS */
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important;}}
+@media(max-width:768px){
+  body{display:block;min-height:100dvh;overflow-x:hidden;}
+  .main{min-height:100dvh;width:100%;}
+  .content{overflow:visible;min-height:calc(100dvh - 60px);padding:14px;}
+  .topbar{position:sticky;top:0;z-index:80;padding:0 14px;}
+  .sidebar{position:fixed;left:0;top:0;height:100dvh;max-height:100dvh;transform:translate3d(-100%,0,0);will-change:transform;}
+  .sidebar.open{transform:translate3d(0,0,0)}
+  .modal-overlay{align-items:flex-start;padding:10px;padding-top:max(10px,env(safe-area-inset-top));overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  .modal{max-height:calc(100dvh - 20px);margin:auto 0;}
+  .toast-wrap{left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));align-items:stretch;}
+  .toast{max-width:none;}
+  .a11y-bar{bottom:max(10px,env(safe-area-inset-bottom));}
+}
 /* ── RESPONSIVE ── */
 @media(max-width:768px){
   .sidebar{position:fixed;left:0;top:0;height:100%;transform:translateX(-100%)}
@@ -449,7 +468,7 @@ body.large-font .form-input,.large-font .quiz-option,.large-font .feed-title,.la
     <div class="user-avatar" aria-hidden="true" id="sb-avatar">?</div>
     <div>
       <div class="user-name" id="sb-name">Carregando...</div>
-      <div class="user-pts" id="sb-pts">⭐ 1.240 pontos</div>
+      <div class="user-pts" id="sb-pts">⭐ 1.240 pontos · DEMO</div>
     </div>
   </div>
   <div class="nav-section">Menu principal</div>
@@ -886,7 +905,7 @@ body.large-font .form-input,.large-font .quiz-option,.large-font .feed-title,.la
             <div class="idea-meta">
               <div class="idea-author"><div class="idea-author-av" aria-hidden="true">AP</div>Ana Paula Ferreira</div>
               <div class="idea-vote">
-                <button class="vote-btn voted" onclick="toggleVote(this)" aria-label="Votar. 247 votos."><span class="vote-arrow">▲</span><span>247</span></button>
+                <button class="vote-btn voted" onclick="toggleVote(this)" data-demo-vote="1" aria-label="Votar. 247 votos."><span class="vote-arrow">▲</span><span>247</span></button>
                 <button class="vote-btn" onclick="showToast('💬 Comentários em breve','info')" aria-label="38 comentários">💬 38</button>
               </div>
             </div>
@@ -898,7 +917,7 @@ body.large-font .form-input,.large-font .quiz-option,.large-font .feed-title,.la
             <div class="idea-meta">
               <div class="idea-author"><div class="idea-author-av" aria-hidden="true">RM</div>Ricardo Mendes</div>
               <div class="idea-vote">
-                <button class="vote-btn" onclick="toggleVote(this)" aria-label="Votar. 189 votos."><span class="vote-arrow">▲</span><span>189</span></button>
+                <button class="vote-btn" onclick="toggleVote(this)" data-demo-vote="1" aria-label="Votar. 189 votos."><span class="vote-arrow">▲</span><span>189</span></button>
                 <button class="vote-btn" onclick="showToast('💬 Comentários em breve','info')">💬 24</button>
               </div>
             </div>
@@ -910,7 +929,7 @@ body.large-font .form-input,.large-font .quiz-option,.large-font .feed-title,.la
             <div class="idea-meta">
               <div class="idea-author"><div class="idea-author-av" aria-hidden="true" id="hub-avatar">?</div><span id="hub-name">Você</span></div>
               <div class="idea-vote">
-                <button class="vote-btn voted" onclick="toggleVote(this)"><span class="vote-arrow">▲</span><span>312</span></button>
+                <button class="vote-btn voted" onclick="toggleVote(this)" data-demo-vote="1"><span class="vote-arrow">▲</span><span>312</span></button>
                 <button class="vote-btn" onclick="showToast('💬 Comentários em breve','info')">💬 57</button>
               </div>
             </div>
@@ -1343,6 +1362,8 @@ body.large-font .form-input,.large-font .quiz-option,.large-font .feed-title,.la
   <button class="a11y-btn" onclick="navigate('publico',document.getElementById('nav-publico'))" title="Painel público">🌐</button>
 </div>
 
+<div id="demo-banner" role="status" aria-label="Modo demonstrativo" style="position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:600;white-space:nowrap;background:#f59e0b;color:#451a03;padding:5px 12px;border-radius:0 0 10px 10px;font-size:10px;font-weight:800;letter-spacing:.3px;box-shadow:0 3px 12px rgba(0,0,0,.12)">MODO DEMONSTRATIVO · DADOS FICTÍCIOS</div>
+
 <!-- ═══════════ BANNER LGPD ═══════════ -->
 <div id="lgpd-banner" role="dialog" aria-label="Aviso de privacidade" aria-live="polite" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:500;background:#0f172a;color:#f1f5f9;padding:14px 20px;box-shadow:0 -4px 20px rgba(0,0,0,.3)">
   <div style="max-width:900px;margin:0 auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
@@ -1770,58 +1791,49 @@ function submitRegistro() {
   const btn = document.getElementById('btn-submit-reg');
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner"></div> Enviando para CESAN...';
-  // Save to Firestore if available
-  if (db) {
-    db.collection('ocorrencias').add({
-      tipo: selectedTipo, descricao: desc,
-      localizacao: 'Rua Sete de Setembro, 234 – Centro, Vitória/ES',
-      status: 'recebido', userId: 'demo-user',
-      criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
-      pontos: 20
-    }).then(() => {
-      finishSubmit();
-    }).catch(() => finishSubmit());
-  } else {
-    setTimeout(finishSubmit, 1500);
-  }
+  // Uma única gravação: finishSubmitReal() é o ponto central de persistência.
+  // Isso evita duplicar a ocorrência no Firestore.
+  finishSubmit();
 }
-function finishSubmit() {
+async function finishSubmit() {
   const btn = document.getElementById('btn-submit-reg');
-  btn.disabled = false;
-  btn.innerHTML = 'Enviar para Agência Virtual CESAN →';
-  // ── Salvar no Firestore ──
   const desc = document.getElementById('reg-desc')?.value || '';
-  finishSubmitReal(selectedTipo, desc);
-  // Reset form
-  selectedTipo = null;
-  document.querySelectorAll('[id^=tipo-]').forEach(b => { b.classList.remove('correct'); b.setAttribute('aria-checked','false'); });
-  document.getElementById('reg-desc').value = '';
-  document.getElementById('desc-count').textContent = '0';
-  const area = document.getElementById('modal-upload');
-  area.className = 'upload-area';
-  area.innerHTML = '<span style="font-size:28px;display:block;margin-bottom:6px">📷</span><div style="font-size:12px;color:var(--muted)">Toque para tirar foto ou escolher da galeria</div><div style="font-size:10px;color:var(--muted);margin-top:3px">JPG, PNG até 10MB</div>';
-  closeModalById('modal-registro');
-  const proto = 'CESAN-' + new Date().getFullYear() + '-' + (4900 + Math.floor(Math.random()*1000));
-  document.getElementById('protocolo-num').textContent = 'Protocolo #' + proto;
-  setTimeout(() => document.getElementById('modal-sucesso').classList.add('open'), 200);
+  const tipo = selectedTipo;
+  if (!tipo || desc.trim().length < 20) return;
+  try {
+    const result = await finishSubmitReal(tipo, desc);
+    if (!result?.ok) return;
+
+    btn.disabled = false;
+    btn.innerHTML = 'Enviar para Agência Virtual CESAN →';
+    selectedTipo = null;
+    document.querySelectorAll('[id^=tipo-]').forEach(b => { b.classList.remove('correct'); b.setAttribute('aria-checked','false'); });
+    document.getElementById('reg-desc').value = '';
+    document.getElementById('desc-count').textContent = '0';
+    const area = document.getElementById('modal-upload');
+    area.className = 'upload-area';
+    area.innerHTML = '<span style="font-size:28px;display:block;margin-bottom:6px">📷</span><div style="font-size:12px;color:var(--muted)">Toque para tirar foto ou escolher da galeria</div><div style="font-size:10px;color:var(--muted);margin-top:3px">JPG, PNG até 10MB</div>';
+    closeModalById('modal-registro');
+    document.getElementById('protocolo-num').textContent = 'Protocolo #' + result.proto;
+    setTimeout(() => document.getElementById('modal-sucesso').classList.add('open'), 200);
+  } catch (e) {
+    console.error('[CESAN] Falha ao concluir ocorrência:', e);
+    showToast('❌ Não foi possível concluir o registro.', 'error');
+    btn.disabled = false;
+    btn.innerHTML = 'Enviar para Agência Virtual CESAN →';
+  }
 }
 
 // ── IDEIA ──
-function submitIdeia() {
+async function submitIdeia() {
   const titulo = document.getElementById('ideia-titulo')?.value.trim() || '';
   const desc   = document.getElementById('ideia-desc')?.value.trim() || '';
   const cat    = document.getElementById('ideia-cat')?.value || '';
   const benef  = document.getElementById('ideia-benef')?.value.trim() || '';
-  if (!titulo || !desc) {
-    showToast('⚠️ Preencha título e descrição', 'warning');
-    return;
-  }
-  if (titulo.length < 10) {
-    showToast('⚠️ Título deve ter pelo menos 10 caracteres', 'warning');
-    return;
-  }
-  // ── Salvar no Firestore ──
-  submitIdeiaReal(titulo, desc, cat, benef);
+  if (!titulo || !desc) { showToast('⚠️ Preencha título e descrição', 'warning'); return; }
+  if (titulo.length < 10) { showToast('⚠️ Título deve ter pelo menos 10 caracteres', 'warning'); return; }
+  const ok = await submitIdeiaReal(titulo, desc, cat, benef);
+  if (!ok) return;
   closeModalById('modal-ideia');
   showToast('💡 Ideia publicada! Aguardando votação da comunidade.', 'success');
   document.getElementById('ideia-titulo').value = '';
@@ -1830,15 +1842,43 @@ function submitIdeia() {
 }
 
 // ── VOTE ──
-function toggleVote(btn) {
-  const sp = btn.querySelector('span:last-child');
-  const n = parseInt(sp.textContent);
-  const wasVoted = btn.classList.contains('voted');
-  btn.classList.toggle('voted');
-  sp.textContent = wasVoted ? n - 1 : n + 1;
-  btn.querySelector('.vote-arrow').style.animation = 'none';
-  setTimeout(() => { btn.querySelector('.vote-arrow').style.animation = ''; }, 10);
-  showToast(wasVoted ? '👎 Voto removido' : '👍 Voto registrado! +5 pts', 'success');
+async function toggleVote(btn) {
+  const user = auth?.currentUser;
+  const ideaId = btn.dataset.ideaId;
+  if (!ideaId) {
+    showToast('ℹ️ Este voto é apenas demonstrativo. No piloto, cada ideia terá seu identificador no Firestore.', 'info');
+    return;
+  }
+  if (!user || !db) {
+    showToast('🔐 Entre na conta para votar.', 'warning');
+    return;
+  }
+  if (btn.dataset.busy === '1') return;
+  btn.dataset.busy = '1';
+  try {
+    const ref = db.collection('ideias').doc(ideaId);
+    const result = await db.runTransaction(async tx => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('IDEA_NOT_FOUND');
+      const data = snap.data() || {};
+      const voters = Array.isArray(data.votantes) ? data.votantes : [];
+      const hasVoted = voters.includes(user.uid);
+      const nextVoters = hasVoted ? voters.filter(id => id !== user.uid) : [...voters, user.uid];
+      const nextVotes = Math.max(0, Number(data.votos || 0) + (hasVoted ? -1 : 1));
+      tx.update(ref, { votos: nextVotes, votantes: nextVoters });
+      return {hasVoted, nextVotes};
+    });
+    const sp = btn.querySelector('span:last-child');
+    if (sp) sp.textContent = result.nextVotes;
+    btn.classList.toggle('voted', !result.hasVoted);
+    btn.setAttribute('aria-pressed', String(!result.hasVoted));
+    showToast(result.hasVoted ? '👎 Voto removido' : '👍 Voto registrado!', 'success');
+  } catch (e) {
+    console.error('[CESAN] Erro no voto:', e);
+    showToast('❌ Não foi possível registrar o voto.', 'error');
+  } finally {
+    btn.dataset.busy = '0';
+  }
 }
 
 // ── CHATBOT (XSS-safe) ──
@@ -2304,15 +2344,23 @@ function updateUserUI(user) {
   if (pEmail && !pEmail.value) pEmail.value = user.email || '';
 }
 
-// ── ADMIN: emails autorizados ──
-const ADMIN_EMAILS = ['admin@cesan.com.br', 'ruam@cesan.com.br']; // adicione aqui
-function checkAdmin(user) {
-  if (!user) return;
-  const isAdmin = ADMIN_EMAILS.includes(user.email) ||
-                  user.email?.endsWith('@cesan.com.br');
+// ── ADMIN: autorização real deve vir de Custom Claims ──
+// Nunca use domínio/e-mail no frontend como mecanismo de segurança.
+// A regra definitiva precisa estar também nas Firestore Security Rules.
+async function checkAdmin(user) {
   const adminBtn = document.getElementById('nav-admin');
-  if (adminBtn) adminBtn.style.display = isAdmin ? 'flex' : 'none';
-  if (isAdmin) loadAdminData();
+  if (adminBtn) adminBtn.style.display = 'none';
+  if (!user || !auth) return false;
+  try {
+    const token = await user.getIdTokenResult(true);
+    const isAdmin = token?.claims?.admin === true;
+    if (adminBtn) adminBtn.style.display = isAdmin ? 'flex' : 'none';
+    if (isAdmin) loadAdminData();
+    return isAdmin;
+  } catch (e) {
+    console.warn('[CESAN] Não foi possível validar claim de admin:', e.message);
+    return false;
+  }
 }
 
 function loadAdminData() {
@@ -2431,87 +2479,80 @@ function loadUserPoints(uid) {
 // ══════════════════════════════════════════
 // FIRESTORE: SALVAR OCORRÊNCIA REAL
 // ══════════════════════════════════════════
-function finishSubmitReal(tipo, desc) {
+async function finishSubmitReal(tipo, desc) {
   if (!db) {
-    console.warn('[CESAN] Firestore não inicializado');
     showToast('❌ Banco de dados não conectado — verifique a configuração Firebase', 'error');
-    return;
+    return {ok:false};
   }
-  const user     = auth?.currentUser;
-  const userId   = user ? user.uid   : 'anonimo_' + Date.now();
+  const user = auth?.currentUser;
+  const userId = user ? user.uid : 'anonimo_' + Date.now();
   const userName = user ? (user.displayName || user.email || 'Cidadão') : 'Cidadão (sem login)';
-  const proto    = 'CESAN-' + new Date().getFullYear() + '-' + (4900 + Math.floor(Math.random()*1000));
+  const rid = (globalThis.crypto && typeof crypto.randomUUID === 'function') ? crypto.randomUUID().slice(0,8).toUpperCase() : Math.random().toString(36).slice(2,10).toUpperCase();
+  const proto = 'DEMO-' + new Date().getFullYear() + '-' + rid;
 
-  db.collection('ocorrencias').add({
-    tipo,
-    descricao: desc,
-    protocolo: proto,
-    localizacao: 'Rua Sete de Setembro, 234 – Centro, Vitória/ES',
-    lat: -20.3155, lng: -40.3128,
-    status: 'recebido',
-    userId, userName,
-    anonimo: !user,
-    pontos: 20,
-    criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
-    resolvidoEm: null
-  })
-  .then(ref => {
+  const payload = {
+    tipo, descricao: desc, protocolo: proto,
+    localizacao: 'Localização a confirmar', lat: null, lng: null,
+    status: 'recebido', userId, userName, anonimo: !user,
+    criadoEm: firebase.firestore.FieldValue.serverTimestamp(), resolvidoEm: null,
+    ambiente: 'demonstracao'
+  };
+
+  // Captura localização somente se o usuário autorizar. Nunca bloqueia o registro.
+  if (navigator.geolocation) {
+    try {
+      const pos = await new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, {enableHighAccuracy:false, timeout:2500, maximumAge:60000}));
+      payload.lat = Number(pos.coords.latitude.toFixed(6));
+      payload.lng = Number(pos.coords.longitude.toFixed(6));
+      payload.localizacao = 'Geolocalização autorizada pelo usuário';
+    } catch (_) { /* localização opcional */ }
+  }
+
+  try {
+    const ref = await db.collection('ocorrencias').add(payload);
     console.log('[CESAN] ✅ Ocorrência salva:', ref.id);
-    document.getElementById('protocolo-num').textContent = 'Protocolo #' + proto;
-    if (user) {
-      db.collection('usuarios').doc(user.uid).set(
-        { pontos: firebase.firestore.FieldValue.increment(20) },
-        { merge: true }
-      ).catch(e => console.warn('[CESAN] Pontos não atualizados:', e.message));
-    }
-    if (analytics && _consentGiven) analytics.logEvent('ocorrencia_registrada', { tipo });
-  })
-  .catch(e => {
+    if (analytics && _consentGiven) analytics.logEvent('ocorrencia_registrada', {tipo});
+    // Pontos NÃO são concedidos pelo cliente. Devem ser calculados por backend/Cloud Function.
+    return {ok:true, proto};
+  } catch (e) {
     console.error('[CESAN] ❌ Erro ao salvar ocorrência:', e.code, e.message);
-    if (e.code === 'permission-denied' || (e.message && e.message.includes('permissions'))) {
-      showToast('⚠️ Permissão negada — configure as Security Rules no console Firebase', 'error');
-    } else if (e.code === 'unavailable') {
-      showToast('📵 Offline — ocorrência será sincronizada ao reconectar', 'warning');
-    } else {
-      showToast('❌ Erro ao salvar: ' + e.message, 'error');
-    }
-  });
+    showToast(e.code === 'permission-denied' ? '⚠️ Registro bloqueado pelas Security Rules.' : '❌ Não foi possível salvar a ocorrência.', 'error');
+    return {ok:false};
+  }
 }
 
 // ══════════════════════════════════════════
 // FIRESTORE: SALVAR IDEIA REAL  
 // ══════════════════════════════════════════
-function submitIdeiaReal(titulo, desc, cat, benef) {
+async function submitIdeiaReal(titulo, desc, cat, benef) {
   if (!db) {
     console.warn('[CESAN] Firestore não inicializado');
     showToast('❌ Banco de dados não conectado', 'error');
-    return;
+    return false;
   }
-  const user     = auth?.currentUser;
-  const userId   = user ? user.uid   : 'anonimo_' + Date.now();
+  const user = auth?.currentUser;
+  if (!user) { showToast('🔐 Entre na conta para publicar uma ideia.', 'warning'); return false; }
+  const userId = user.uid;
   const userName = user ? (user.displayName || user.email || 'Cidadão') : 'Cidadão (sem login)';
 
-  db.collection('ideias').add({
-    titulo, descricao: desc,
-    categoria: cat, beneficio: benef,
-    votos: 0, votantes: [],
-    userId, userName,
-    anonimo: !user,
-    status: 'votacao',
-    criadoEm: firebase.firestore.FieldValue.serverTimestamp()
-  })
-  .then(ref => {
+  try {
+    const ref = await db.collection('ideias').add({
+      titulo, descricao: desc,
+      categoria: cat, beneficio: benef,
+      votos: 0, votantes: [],
+      userId, userName,
+      anonimo: false,
+      status: 'votacao',
+      criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+    });
     console.log('[CESAN] ✅ Ideia salva:', ref.id);
     if (analytics && _consentGiven) analytics.logEvent('ideia_cadastrada', { categoria: cat });
-  })
-  .catch(e => {
+    return true;
+  } catch (e) {
     console.error('[CESAN] ❌ Erro ao salvar ideia:', e.code, e.message);
-    if (e.code === 'permission-denied' || (e.message && e.message.includes('permissions'))) {
-      showToast('⚠️ Permissão negada — configure as Security Rules no Firebase', 'error');
-    } else {
-      showToast('❌ Ideia não salva: ' + e.message, 'error');
-    }
-  });
+    showToast(e.code === 'permission-denied' ? '⚠️ Permissão negada pelas Security Rules.' : '❌ Não foi possível publicar a ideia.', 'error');
+    return false;
+  }
 }
 
 // ══════════════════════════════════════════

@@ -506,8 +506,8 @@ footer{
     <a href="#impacto">Impacto</a>
     <a href="hydrohero.html" class="nav-game">🎮 Jogar HydroHero</a><a href="aguacesan.html" class="nav-cta">Acessar plataforma →</a>
   </div>
-  <button class="hamburger" aria-label="Menu">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  <button class="hamburger" aria-label="Menu" aria-expanded="false">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0369a1" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
   </button>
 </nav>
 
@@ -535,7 +535,7 @@ footer{
 
   <div class="hero-eyebrow">
     <span></span>
-    Vitória/ES · Plataforma Oficial CESAN
+    Vitória/ES · Protótipo demonstrativo
   </div>
 
   <h1>
@@ -729,7 +729,7 @@ footer{
 <section class="impact" id="impacto" aria-label="Números do impacto">
   <div style="max-width:800px;margin:0 auto">
     <div class="section-eyebrow">Resultados</div>
-    <h2 class="section-title">Números que <em>falam</em></h2>
+    <h2 class="section-title">Indicadores <em>demonstrativos</em></h2>
     <p class="section-lead" style="color:rgba(255,255,255,.7);margin:0 auto">
       Cada cidadão que participa amplifica o impacto coletivo na conservação da água em Vitória.
     </p>
@@ -926,7 +926,7 @@ footer{
     </div>
   </div>
   <div class="footer-bottom">
-    <span>© 2024 CESAN — Companhia Espírito Santense de Saneamento. Todos os direitos reservados.</span>
+    <span>© 2026 · Água Consciente — Protótipo demonstrativo</span>
     <div style="display:flex;gap:20px">
       <a href="#">LGPD</a>
       <a href="#">Acessibilidade</a>
@@ -938,6 +938,17 @@ footer{
 <script>
 // ── Nav scroll ──
 const navbar = document.getElementById('navbar');
+const hamburger = document.querySelector('.hamburger');
+if (hamburger) {
+  hamburger.addEventListener('click', () => {
+    const open = navbar.classList.toggle('nav-mobile-open');
+    hamburger.setAttribute('aria-expanded', String(open));
+  });
+  document.querySelectorAll('.nav-links a').forEach(a => a.addEventListener('click', () => {
+    navbar.classList.remove('nav-mobile-open');
+    hamburger.setAttribute('aria-expanded','false');
+  }));
+}
 // Nav fixa — sem comportamento de scroll
 
 // ── Scroll reveal ──
