@@ -1525,6 +1525,9 @@ function navigate(id, btn) {
   document.getElementById('topbar-title').textContent = title;
   document.title = title + ' – Água Consciente CESAN';
   currentPage = id;
+  if (window.location.hash !== '#' + id) {
+    history.replaceState(null, '', '#' + id);
+  }
   window.scrollTo(0,0);
   closeSidebar();
   if (id === 'rotalimpa') setTimeout(initMap, 100);
@@ -1544,6 +1547,23 @@ function navigate(id, btn) {
     });
   }
 }
+
+
+// ── ROTEAMENTO POR HASH ──
+// Permite links externos como aguacesan.html#desafios abrirem diretamente
+// a seção correta da plataforma, em vez de cair sempre no Dashboard.
+function navigateFromHash() {
+  const id = (window.location.hash || '').replace(/^#/, '').trim();
+  if (!id || !PAGE_TITLES[id]) return;
+  const btn = document.getElementById('nav-' + id);
+  navigate(id, btn || null);
+}
+
+window.addEventListener('hashchange', navigateFromHash);
+window.addEventListener('DOMContentLoaded', () => {
+  // pequeno atraso para garantir que toda a interface já esteja pronta
+  setTimeout(navigateFromHash, 0);
+});
 
 // ── SIDEBAR MOBILE ──
 function toggleSidebar() {
