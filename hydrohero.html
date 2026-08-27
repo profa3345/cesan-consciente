@@ -1482,7 +1482,7 @@ body.hh-v45-home-active #menu-music-toggle{
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="HydroHero">
-<meta name="hydrohero-build" content="75">
+<meta name="hydrohero-build" content="76">
 <link rel="manifest" href="/manifest.webmanifest">
 <style id="hh-v62-mobile-final">
 /* V62 — orientação, toque e PWA */
@@ -12410,6 +12410,89 @@ document.addEventListener('visibilitychange',async()=>{
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hide);
   else hide();
   new MutationObserver(hide).observe(document.documentElement,{childList:true,subtree:true});
+})();
+</script>
+
+
+<script id="hh-v76-back-button-fix">
+(function(){
+'use strict';
+
+function goHome(e){
+  if(e){
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  try{
+    /* Fluxo nativo preferido */
+    if(typeof showView === 'function'){
+      showView('home');
+    }else{
+      document.querySelectorAll('.view').forEach(v=>v.classList.add('off'));
+      const home=document.getElementById('v-home');
+      if(home) home.classList.remove('off');
+    }
+
+    /* Garante que overlays/painéis sejam fechados */
+    document.querySelectorAll('.pw').forEach(p=>p.classList.add('off'));
+
+    const back=document.getElementById('back-btn');
+    if(back) back.style.display='none';
+
+    try{
+      if(typeof hideGameUI==='function') hideGameUI();
+    }catch(_){}
+
+    document.body.classList.remove('game-active');
+
+    requestAnimationFrame(()=>{
+      try{
+        if(typeof resize==='function') resize(true);
+      }catch(_){}
+    });
+
+    console.info('[HydroHero V76] Voltar -> Home');
+  }catch(err){
+    console.warn('[HydroHero V76] Falha ao voltar:',err);
+  }
+}
+
+function bindBack(){
+  /* Botão global real */
+  const back=document.getElementById('back-btn');
+  if(back){
+    back.style.setProperty('pointer-events','auto','important');
+    back.style.setProperty('cursor','pointer','important');
+    back.removeAttribute('disabled');
+    back.onclick=goHome;
+    back.onpointerup=function(e){
+      if(e.pointerType==='touch' || e.pointerType==='pen') goHome(e);
+    };
+  }
+
+  /* Hotspot da Home V45, se existir */
+  document.querySelectorAll('.hh-v45-back').forEach(el=>{
+    el.style.setProperty('pointer-events','auto','important');
+    el.onclick=goHome;
+  });
+
+  /* Qualquer seta visual legada que tenha aria-label Voltar */
+  document.querySelectorAll('[aria-label="Voltar"], [title="Voltar"]').forEach(el=>{
+    el.style.setProperty('pointer-events','auto','important');
+    el.onclick=goHome;
+  });
+}
+
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',bindBack,{once:true});
+}else{
+  bindBack();
+}
+setTimeout(bindBack,200);
+setTimeout(bindBack,800);
+
+window.addEventListener('resize',()=>setTimeout(bindBack,80),{passive:true});
 })();
 </script>
 
