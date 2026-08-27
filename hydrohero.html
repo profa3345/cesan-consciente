@@ -1482,7 +1482,7 @@ body.hh-v45-home-active #menu-music-toggle{
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="HydroHero">
-<meta name="hydrohero-build" content="74">
+<meta name="hydrohero-build" content="75">
 <link rel="manifest" href="/manifest.webmanifest">
 <style id="hh-v62-mobile-final">
 /* V62 — orientação, toque e PWA */
@@ -12386,6 +12386,30 @@ document.addEventListener('visibilitychange',async()=>{
     if(reg) await reg.update();
   }catch(_){}
 });
+})();
+</script>
+
+
+<style id="hh-v75-remove-easy-mode">
+.easy-mode, .easy-mode-btn, .easyMode, .easyModeBtn,
+#easy-mode, #easyMode, #easy-mode-btn, #easyModeBtn,
+.mode-easy, .modo-facil, #modo-facil {
+  display:none !important;
+}
+</style>
+<script id="hh-v75-remove-easy-mode-script">
+(function removeEasyModeButton(){
+  function hide(){
+    document.querySelectorAll('button, [role="button"], .pill, .badge').forEach(function(el){
+      var t=(el.textContent||'').replace(/\s+/g,' ').trim().toLowerCase();
+      if(t === 'modo fácil' || t === '⭐ modo fácil' || t === '★ modo fácil'){
+        el.style.setProperty('display','none','important');
+      }
+    });
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hide);
+  else hide();
+  new MutationObserver(hide).observe(document.documentElement,{childList:true,subtree:true});
 })();
 </script>
 
