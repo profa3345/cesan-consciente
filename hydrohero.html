@@ -1482,7 +1482,7 @@ body.hh-v45-home-active #menu-music-toggle{
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="HydroHero">
-<meta name="hydrohero-build" content="76">
+<meta name="hydrohero-build" content="77">
 <link rel="manifest" href="/manifest.webmanifest">
 <style id="hh-v62-mobile-final">
 /* V62 — orientação, toque e PWA */
@@ -12414,85 +12414,195 @@ document.addEventListener('visibilitychange',async()=>{
 </script>
 
 
-<script id="hh-v76-back-button-fix">
+
+
+
+<script id="hh-v77-internal-history">
 (function(){
 'use strict';
 
-function goHome(e){
+const HH77 = {
+  applyingPop:false,
+  current:'home'
+};
+
+function visibleView(){
+  const v=[...document.querySelectorAll('.view')].find(el=>!el.classList.contains('off'));
+  if(!v || !v.id) return 'home';
+  return v.id.replace(/^v-/,'');
+}
+
+function closePanels(){
+  document.querySelectorAll('.pw').forEach(p=>p.classList.add('off'));
+}
+
+/* Mostra uma view SEM causar navegação física do navegador. */
+function showInternal(id, opts){
+  opts=opts||{};
+  const target=document.getElementById('v-'+id);
+  if(!target) return false;
+
+  document.querySelectorAll('.view').forEach(v=>v.classList.add('off'));
+  target.classList.remove('off');
+  closePanels();
+
+  const back=document.getElementById('back-btn');
+  if(back){
+    back.style.display = id==='home' ? 'none' : 'flex';
+    back.style.setProperty('pointer-events','auto','important');
+  }
+
+  if(id==='home'){
+    document.body.classList.remove('game-active');
+    try{ if(typeof hideGameUI==='function') hideGameUI(); }catch(_){}
+  }
+
+  HH77.current=id;
+
+  if(!opts.noHistory){
+    const state={hydrohero:true,view:id};
+    if(opts.replace){
+      history.replaceState(state,'',location.href);
+    }else{
+      history.pushState(state,'',location.href);
+    }
+  }
+
+  requestAnimationFrame(()=>{
+    try{ if(typeof resize==='function') resize(true); }catch(_){}
+    try{ if(typeof updateHUD==='function') updateHUD(); }catch(_){}
+  });
+
+  return true;
+}
+
+/* Preserva a função original, mas a navegação passa pelo histórico interno. */
+const originalShowView = (typeof window.showView==='function') ? window.showView : null;
+
+window.showView=function(id){
+  /* se for uma view conhecida, usa navegação interna */
+  if(document.getElementById('v-'+id)){
+    return showInternal(id);
+  }
+  if(originalShowView) return originalShowView(id);
+};
+
+/* Seta interna: volta UMA tela no histórico do jogo.
+   Se não houver uma anterior do jogo, retorna para Home. */
+function backInsideGame(e){
   if(e){
     e.preventDefault();
     e.stopPropagation();
+    if(e.stopImmediatePropagation) e.stopImmediatePropagation();
   }
 
-  try{
-    /* Fluxo nativo preferido */
-    if(typeof showView === 'function'){
-      showView('home');
-    }else{
-      document.querySelectorAll('.view').forEach(v=>v.classList.add('off'));
-      const home=document.getElementById('v-home');
-      if(home) home.classList.remove('off');
-    }
+  const now=visibleView();
 
-    /* Garante que overlays/painéis sejam fechados */
-    document.querySelectorAll('.pw').forEach(p=>p.classList.add('off'));
-
-    const back=document.getElementById('back-btn');
-    if(back) back.style.display='none';
-
-    try{
-      if(typeof hideGameUI==='function') hideGameUI();
-    }catch(_){}
-
-    document.body.classList.remove('game-active');
-
-    requestAnimationFrame(()=>{
-      try{
-        if(typeof resize==='function') resize(true);
-      }catch(_){}
-    });
-
-    console.info('[HydroHero V76] Voltar -> Home');
-  }catch(err){
-    console.warn('[HydroHero V76] Falha ao voltar:',err);
+  if(now==='home'){
+    return false;
   }
+
+  /* history.back() agora volta para um state HydroHero, não sai do site */
+  if(history.state && history.state.hydrohero){
+    history.back();
+  }else{
+    showInternal('home',{replace:true});
+  }
+  return false;
 }
 
 function bindBack(){
-  /* Botão global real */
-  const back=document.getElementById('back-btn');
-  if(back){
-    back.style.setProperty('pointer-events','auto','important');
-    back.style.setProperty('cursor','pointer','important');
-    back.removeAttribute('disabled');
-    back.onclick=goHome;
-    back.onpointerup=function(e){
-      if(e.pointerType==='touch' || e.pointerType==='pen') goHome(e);
-    };
+  const btn=document.getElementById('back-btn');
+  if(btn){
+    btn.removeAttribute('disabled');
+    btn.style.setProperty('pointer-events','auto','important');
+    btn.style.setProperty('cursor','pointer','important');
+
+    /* Captura antes de handlers antigos */
+    if(btn.dataset.hh77Bound!=='1'){
+      btn.dataset.hh77Bound='1';
+      btn.addEventListener('click',backInsideGame,true);
+      btn.addEventListener('pointerup',function(e){
+        if(e.pointerType==='touch' || e.pointerType==='pen') backInsideGame(e);
+      },true);
+    }
+  }
+}
+
+/* Cria a entrada-base da SPA.
+   Isso impede que o primeiro Voltar do navegador abandone o HydroHero. */
+function initializeHistory(){
+  const initial=visibleView() || 'home';
+
+  history.replaceState(
+    {hydrohero:true,view:'home',root:true},
+    '',
+    location.href
+  );
+
+  /* Se já iniciou em outra view, adiciona essa view por cima da Home. */
+  if(initial!=='home'){
+    history.pushState({hydrohero:true,view:initial},'',location.href);
   }
 
-  /* Hotspot da Home V45, se existir */
-  document.querySelectorAll('.hh-v45-back').forEach(el=>{
-    el.style.setProperty('pointer-events','auto','important');
-    el.onclick=goHome;
+  HH77.current=initial;
+}
+
+/* O botão Voltar físico/do navegador navega dentro do jogo. */
+window.addEventListener('popstate',function(e){
+  HH77.applyingPop=true;
+
+  const state=e.state;
+  if(state && state.hydrohero){
+    const id=state.view || 'home';
+    showInternal(id,{noHistory:true});
+  }else{
+    /* nunca deixa um back inesperado desmontar a sessão do jogo */
+    showInternal('home',{replace:true,noHistory:true});
+    history.replaceState({hydrohero:true,view:'home',root:true},'',location.href);
+  }
+
+  HH77.applyingPop=false;
+});
+
+/* Captura cliques dos cartões de navegação e registra a view nova
+   mesmo se handlers legados continuarem chamando showView. */
+function observeViews(){
+  const views=[...document.querySelectorAll('.view')];
+
+  const obs=new MutationObserver(()=>{
+    if(HH77.applyingPop) return;
+    const now=visibleView();
+    if(!now || now===HH77.current) return;
+
+    HH77.current=now;
+
+    const st=history.state;
+    if(!st || !st.hydrohero || st.view!==now){
+      history.pushState({hydrohero:true,view:now},'',location.href);
+    }
   });
 
-  /* Qualquer seta visual legada que tenha aria-label Voltar */
-  document.querySelectorAll('[aria-label="Voltar"], [title="Voltar"]').forEach(el=>{
-    el.style.setProperty('pointer-events','auto','important');
-    el.onclick=goHome;
-  });
+  views.forEach(v=>obs.observe(v,{attributes:true,attributeFilter:['class']}));
+}
+
+function start(){
+  bindBack();
+  initializeHistory();
+  observeViews();
+
+  /* reaplica depois que scripts antigos terminarem de inicializar */
+  setTimeout(bindBack,150);
+  setTimeout(bindBack,700);
 }
 
 if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded',bindBack,{once:true});
+  document.addEventListener('DOMContentLoaded',start,{once:true});
 }else{
-  bindBack();
+  start();
 }
-setTimeout(bindBack,200);
-setTimeout(bindBack,800);
 
-window.addEventListener('resize',()=>setTimeout(bindBack,80),{passive:true});
+console.info('[HydroHero V77] Navegação interna ativa: seta e botão Voltar não saem do jogo.');
 })();
 </script>
 
