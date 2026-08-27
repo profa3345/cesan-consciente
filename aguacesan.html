@@ -451,6 +451,12 @@ input,textarea,select{font-size:16px;} /* evita zoom/flicker no iOS */
 </style>
 </head>
 <body>
+<script>
+// Compatibilidade: o antigo endereço do HydroHero agora aponta para a página independente.
+if (window.location.hash.toLowerCase() === '#hydrohero') {
+  window.location.replace('https://aguacesan.vercel.app/hydrohero.html');
+}
+</script>
 <a href="#main-content" class="skip-link">Pular para o conteúdo</a>
 
 <!-- SIDEBAR BACKDROP -->
@@ -485,7 +491,7 @@ input,textarea,select{font-size:16px;} /* evita zoom/flicker no iOS */
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
     Rota Limpa CESAN
   </button>
-  <button class="nav-item" id="nav-hydrohero" onclick="navigate('hydrohero',this)">
+  <button class="nav-item" id="nav-hydrohero" onclick="window.location.href='https://aguacesan.vercel.app/hydrohero.html'">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 2C6 8 4 13 4 16a8 8 0 0016 0c0-3-2-8-8-14z"/></svg>
     HydroHero
   </button>
@@ -567,7 +573,7 @@ input,textarea,select{font-size:16px;} /* evita zoom/flicker no iOS */
         <h2>Bem-vindo, <span id="banner-name">...</span>! 👋</h2>
         <p>Você está no nível <strong>Guardião da Água</strong> · Plataforma gamificada de educação e monitoramento hídrico</p>
         <div class="banner-actions">
-          <button class="btn-glass" onclick="navigate('hydrohero',document.getElementById('nav-hydrohero'))">
+          <button class="btn-glass" onclick="window.location.href='https://aguacesan.vercel.app/hydrohero.html'">
             🎮 HydroHero — Aprender
           </button>
           <button class="btn-glass" onclick="navigate('rotalimpa',document.getElementById('nav-rotalimpa'))">
@@ -616,7 +622,7 @@ input,textarea,select{font-size:16px;} /* evita zoom/flicker no iOS */
       <div class="grid-2">
         <div>
           <!-- HydroHero Guide -->
-          <div class="hero-guide" onclick="navigate('hydrohero',document.getElementById('nav-hydrohero'))" id="hero-guide-card" role="button" tabindex="0" aria-label="Abrir HydroHero">
+          <div class="hero-guide" onclick="window.location.href='https://aguacesan.vercel.app/hydrohero.html'" id="hero-guide-card" role="button" tabindex="0" aria-label="Abrir HydroHero">
             <div class="hero-mascot" aria-hidden="true">
               <img src="PLACEHOLDER_HH_SM" alt="HydroHero" style="height:100px;object-fit:contain;filter:drop-shadow(0 4px 12px rgba(0,0,0,.4));margin-bottom:-4px">
             </div>
@@ -848,43 +854,6 @@ input,textarea,select{font-size:16px;} /* evita zoom/flicker no iOS */
             </div>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- ═══════════ HYDROHERO ═══════════ -->
-    <div id="page-hydrohero" class="page" role="region" aria-label="HydroHero">
-      <div class="hero-banner" style="display:flex;align-items:center;gap:24px;padding:24px 32px">
-        <div style="flex:1">
-          <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:8px">Jogo Educativo CESAN</div>
-          <h2 style="font-size:28px;font-weight:800;margin-bottom:8px">🌊 HydroHero</h2>
-          <p style="opacity:.8;margin-bottom:20px;font-size:14px">11 fases educativas sobre água, saneamento e uso consciente da água em Vitória/ES</p>
-          <div class="hero-stats" style="gap:20px">
-            <div class="hero-stat"><div class="n">7</div><div class="l">Fases completas</div></div>
-            <div class="hero-stat"><div class="n">3.400</div><div class="l">Pts no jogo</div></div>
-            <div class="hero-stat"><div class="n">82%</div><div class="l">Precisão</div></div>
-          </div>
-        </div>
-        <div style="flex-shrink:0;position:relative;z-index:1">
-          <img src="PLACEHOLDER_HH_XL" alt="HydroHero" style="height:240px;object-fit:contain;filter:drop-shadow(0 12px 32px rgba(0,0,0,.6));animation:mascot-float 3s ease-in-out infinite;margin-bottom:-20px">
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div><div style="font-size:14px;font-weight:700">Progresso geral</div><div style="font-size:12px;color:var(--muted)">7 de 11 fases</div></div>
-        <div style="font-size:22px;font-weight:800;color:#4338ca">63%</div>
-      </div>
-      <div class="progress-wrap" style="height:10px;margin-bottom:22px" role="progressbar" aria-valuenow="63" aria-valuemin="0" aria-valuemax="100" aria-label="63% do jogo concluído"><div class="progress-bar" style="width:63%;background:linear-gradient(90deg,#4338ca,#7c3aed)"></div></div>
-      <div class="phases-grid" role="list">
-        <div class="phase-card completed" role="listitem" onclick="showToast('✅ Fase 1 concluída! Pontuação: 300 pts','success')"><div class="phase-crown" aria-hidden="true">👑</div><div class="phase-num">Fase 1</div><div class="phase-icon" aria-hidden="true">💧</div><div class="phase-title">O Ciclo da Água</div><div class="phase-sub">Evaporação e precipitação</div><div class="phase-pts">✓ 300 pts</div></div>
-        <div class="phase-card completed" role="listitem" onclick="showToast('✅ Fase 2 concluída! Pontuação: 320 pts','success')"><div class="phase-crown" aria-hidden="true">👑</div><div class="phase-num">Fase 2</div><div class="phase-icon" aria-hidden="true">🏞️</div><div class="phase-title">Nascentes e Rios</div><div class="phase-sub">Fontes de água potável</div><div class="phase-pts">✓ 320 pts</div></div>
-        <div class="phase-card completed" role="listitem" onclick="showToast('✅ Fase 3 concluída! Pontuação: 350 pts','success')"><div class="phase-crown" aria-hidden="true">👑</div><div class="phase-num">Fase 3</div><div class="phase-icon" aria-hidden="true">🔬</div><div class="phase-title">Tratamento da Água</div><div class="phase-sub">Filtração e cloração</div><div class="phase-pts">✓ 350 pts</div></div>
-        <div class="phase-card completed" role="listitem" onclick="showToast('✅ Fase 4 concluída! Pontuação: 300 pts','success')"><div class="phase-crown" aria-hidden="true">👑</div><div class="phase-num">Fase 4</div><div class="phase-icon" aria-hidden="true">🏙️</div><div class="phase-title">Rede de Distribuição</div><div class="phase-sub">Como a água chega à você</div><div class="phase-pts">✓ 300 pts</div></div>
-        <div class="phase-card completed" role="listitem" onclick="showToast('✅ Fase 5 concluída! Pontuação: 340 pts','success')"><div class="phase-crown" aria-hidden="true">👑</div><div class="phase-num">Fase 5</div><div class="phase-icon" aria-hidden="true">🚿</div><div class="phase-title">Uso Consciente da Água</div><div class="phase-sub">Boas práticas no dia a dia</div><div class="phase-pts">✓ 340 pts</div></div>
-        <div class="phase-card completed" role="listitem" onclick="showToast('✅ Fase 6 concluída! Pontuação: 420 pts','success')"><div class="phase-crown" aria-hidden="true">👑</div><div class="phase-num">Fase 6</div><div class="phase-icon" aria-hidden="true">🔍</div><div class="phase-title">Detectando Vazamentos</div><div class="phase-sub">Como identificar perdas</div><div class="phase-pts">✓ 420 pts</div></div>
-        <div class="phase-card completed" role="listitem" onclick="showToast('✅ Fase 7 concluída! Pontuação: 370 pts','success')"><div class="phase-crown" aria-hidden="true">👑</div><div class="phase-num">Fase 7</div><div class="phase-icon" aria-hidden="true">♻️</div><div class="phase-title">Reuso da Água</div><div class="phase-sub">Reaproveitamento doméstico</div><div class="phase-pts">✓ 370 pts</div></div>
-        <div class="phase-card active" role="listitem" onclick="showToast('🎮 Iniciando Fase 8: Esgoto Sanitário!','info')"><div class="phase-num">Fase 8</div><div class="phase-icon" aria-hidden="true">⚙️</div><div class="phase-title">Esgoto Sanitário</div><div class="phase-sub">Coleta e tratamento</div><div class="phase-pts">▶ Jogar agora</div></div>
-        <div class="phase-card locked" role="listitem" onclick="showToast('🔒 Complete a Fase 8 para desbloquear','info')" aria-label="Fase 9 bloqueada. Complete a Fase 8 para desbloquear."><div class="phase-num">Fase 9</div><div class="phase-icon" aria-hidden="true">🌿</div><div class="phase-title">Impacto Ambiental</div><div class="phase-sub">Efeitos da poluição</div><div class="phase-pts">🔒 Bloqueada</div></div>
-        <div class="phase-card locked" role="listitem" onclick="showToast('🔒 Complete a Fase 9 para desbloquear','info')" aria-label="Fase 10 bloqueada."><div class="phase-num">Fase 10</div><div class="phase-icon" aria-hidden="true">📊</div><div class="phase-title">Dados e Métricas</div><div class="phase-sub">Indicadores hídricos</div><div class="phase-pts">🔒 Bloqueada</div></div>
-        <div class="phase-card locked" role="listitem" onclick="showToast('🔒 Complete a Fase 10 para desbloquear','info')" aria-label="Fase 11 bloqueada."><div class="phase-num">Fase 11</div><div class="phase-icon" aria-hidden="true">🌍</div><div class="phase-title">Crise Global da Água</div><div class="phase-sub">Desafios do futuro</div><div class="phase-pts">🔒 Bloqueada</div></div>
       </div>
     </div>
 
