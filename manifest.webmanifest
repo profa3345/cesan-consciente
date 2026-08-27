@@ -1,0 +1,26 @@
+{
+  "id": "/hydrohero.html",
+  "name": "HydroHero — O Super-Herói da Água",
+  "short_name": "HydroHero",
+  "description": "Jogo educativo da água — aprenda, jogue e proteja.",
+  "start_url": "/hydrohero.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#03182d",
+  "theme_color": "#03182d",
+  "icons": [
+    {
+      "src": "/hydrohero-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/hydrohero-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

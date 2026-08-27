@@ -1482,13 +1482,8 @@ body.hh-v45-home-active #menu-music-toggle{
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="HydroHero">
-<meta name="hydrohero-build" content="69">
+<meta name="hydrohero-build" content="71">
 <link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="192x192" href="/hydrohero-icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="/hydrohero-icon-512.png">
-<link rel="apple-touch-icon" href="/hydrohero-icon-192.png">
-
-
 <style id="hh-v62-mobile-final">
 /* V62 — orientação, toque e PWA */
 #hh-install-app{
@@ -1696,6 +1691,49 @@ html.hh62-landscape #portrait-tip{display:none!important}
   }
 }
 </style>
+
+
+<style id="hh-v70-install-style">
+#hh-install-app-v70{
+  position:fixed;left:50%;bottom:54px;transform:translateX(-50%);
+  z-index:2500;display:flex;align-items:center;justify-content:center;gap:8px;
+  min-height:42px;padding:9px 16px;border-radius:999px;
+  border:1px solid rgba(88,226,255,.72);
+  background:linear-gradient(135deg,#159dff,#0872de 56%,#1748c4);
+  color:#fff;font:900 12px 'Nunito',sans-serif;
+  box-shadow:0 10px 30px rgba(0,80,180,.34),0 0 20px rgba(45,205,255,.15);
+  cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+}
+#hh-install-app-v70:hover{filter:brightness(1.08);transform:translateX(-50%) translateY(-1px)}
+#hh-install-app-v70:active{transform:translateX(-50%) scale(.97)}
+body.game-active #hh-install-app-v70{display:none!important}
+
+#hh-install-help-v70{
+  position:fixed;inset:0;z-index:5000;display:none;align-items:center;justify-content:center;
+  padding:18px;background:rgba(1,8,18,.82);backdrop-filter:blur(8px)
+}
+#hh-install-help-v70.show{display:flex}
+#hh-install-help-v70 .card{
+  width:min(430px,92vw);padding:20px;border-radius:20px;
+  background:linear-gradient(155deg,#0b2a50,#041527);
+  border:1px solid rgba(75,220,255,.35);
+  box-shadow:0 24px 70px rgba(0,0,0,.55);color:#eefaff
+}
+#hh-install-help-v70 h3{font-family:'Bangers',cursive;color:#54e5ff;font-size:1.45rem;letter-spacing:1px;margin:0 0 10px}
+#hh-install-help-v70 p{font-size:.84rem;line-height:1.5;color:rgba(230,246,255,.82);margin:7px 0}
+#hh-install-help-v70 button{
+  margin-top:12px;width:100%;min-height:44px;border:0;border-radius:12px;
+  background:#128aff;color:#fff;font-weight:900;cursor:pointer
+}
+@media(max-width:650px){
+  #hh-install-app-v70{bottom:48px;min-height:44px;font-size:12px;padding:10px 15px}
+}
+</style>
+
+
+<link rel="icon" type="image/png" sizes="192x192" href="/hydrohero-icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/hydrohero-icon-512.png">
+<link rel="apple-touch-icon" href="/hydrohero-icon-192.png">
 
 </head>
 <body>
@@ -12183,6 +12221,91 @@ if(document.readyState==='loading'){
 setTimeout(bind,250);
 
 console.info('[HydroHero V69] Home nova V45 é a única Home visual.');
+})();
+</script>
+
+
+<script id="hh-v70-install-runtime">
+(function(){
+'use strict';
+
+let deferredPrompt=null;
+
+const btn=document.createElement('button');
+btn.id='hh-install-app-v70';
+btn.type='button';
+btn.innerHTML='📲 <span>Instalar HydroHero</span>';
+document.body.appendChild(btn);
+
+const help=document.createElement('div');
+help.id='hh-install-help-v70';
+help.innerHTML=`
+  <div class="card">
+    <h3>📲 INSTALAR HYDROHERO</h3>
+    <div id="hh-install-help-text"></div>
+    <button type="button" id="hh-install-help-close">Entendi</button>
+  </div>`;
+document.body.appendChild(help);
+
+const helpText=help.querySelector('#hh-install-help-text');
+help.querySelector('#hh-install-help-close').onclick=()=>help.classList.remove('show');
+
+function standalone(){
+  return matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;
+}
+function showHelp(){
+  const ua=navigator.userAgent||'';
+  const ios=/iPad|iPhone|iPod/.test(ua);
+  const android=/Android/i.test(ua);
+
+  if(standalone()){
+    helpText.innerHTML='<p>✅ O HydroHero já está instalado neste aparelho.</p>';
+  }else if(ios){
+    helpText.innerHTML='<p>No iPhone/iPad, toque em <b>Compartilhar</b> no Safari e depois em <b>Adicionar à Tela de Início</b>.</p>';
+  }else if(android){
+    helpText.innerHTML='<p>O navegador ainda não liberou a instalação automática.</p><p>No Chrome, abra o menu <b>⋮</b> e escolha <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.</p><p>Se a opção não aparecer, confirme que <b>manifest.webmanifest</b> e <b>sw.js</b> estão publicados na raiz.</p>';
+  }else{
+    helpText.innerHTML='<p>No menu do navegador, procure por <b>Instalar HydroHero</b>, <b>Instalar aplicativo</b> ou <b>Adicionar à tela inicial</b>.</p>';
+  }
+  help.classList.add('show');
+}
+
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  deferredPrompt=e;
+});
+
+window.addEventListener('appinstalled',()=>{
+  deferredPrompt=null;
+  btn.innerHTML='✅ <span>HydroHero instalado</span>';
+  setTimeout(()=>btn.style.display='none',1600);
+});
+
+btn.addEventListener('click',async()=>{
+  if(standalone()){showHelp();return;}
+  if(deferredPrompt){
+    deferredPrompt.prompt();
+    try{await deferredPrompt.userChoice;}catch(_){}
+    deferredPrompt=null;
+  }else{
+    showHelp();
+  }
+});
+
+if('serviceWorker' in navigator && location.protocol==='https:'){
+  window.addEventListener('load',async()=>{
+    try{
+      const reg=await navigator.serviceWorker.register('/sw.js',{scope:'/',updateViaCache:'none'});
+      await reg.update().catch(()=>{});
+      document.addEventListener('visibilitychange',()=>{
+        if(!document.hidden)reg.update().catch(()=>{});
+      });
+      window.addEventListener('focus',()=>reg.update().catch(()=>{}));
+    }catch(err){
+      console.warn('[HydroHero V70] Service Worker não registrado:',err);
+    }
+  });
+}
 })();
 </script>
 

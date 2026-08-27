@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'hydrohero-v63';
+const CACHE_VERSION = 'hydrohero-v71';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
 self.addEventListener('install', event => {
