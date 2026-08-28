@@ -617,94 +617,6 @@ body.game-active #v-home{
      Uma identidade oficial para as 6 fases; perguntas canônicas por fase;
      wrappers antigos de 3 fases neutralizados. -->
 
-<style id="hh-hints-layout-v17">
-/* Uma única hierarquia visual para informações durante o jogo. */
-body.game-active #phase-sign{display:none!important}
-
-/* Missão fixa: sempre no topo, abaixo dos objetivos. */
-body.game-active #mission-live{
-  top:82px!important;
-  left:50%!important;
-  transform:translateX(-50%)!important;
-  width:min(560px,48vw)!important;
-  max-width:48vw!important;
-  z-index:40!important;
-}
-
-/* Informações laterais não competem com a missão. */
-body.game-active #water-impact{
-  top:82px!important;right:12px!important;z-index:40!important
-}
-body.game-active #phase-badge{
-  top:82px!important;left:12px!important;z-index:40!important
-}
-
-/* Faixa única de orientação no rodapé. */
-body.game-active #nball,
-body.game-active #interaction-hint,
-body.game-active #jump-help,
-body.game-active #educ{
-  left:50%!important;
-  right:auto!important;
-  top:auto!important;
-  bottom:92px!important;
-  transform:translateX(-50%)!important;
-  width:min(520px,72vw)!important;
-  max-width:min(520px,72vw)!important;
-  z-index:55!important;
-  box-sizing:border-box!important;
-}
-
-/* Falas são prioridade máxima. */
-body.game-active #nball{z-index:58!important}
-
-/* Toasts de recompensa ficam no alto, mas abaixo da missão. */
-body.game-active #hh-v9-toast{
-  top:150px!important;
-  bottom:auto!important;
-  max-width:min(520px,70vw)!important;
-  z-index:60!important;
-}
-
-/* Evita texto minúsculo/espremido. */
-body.game-active #mission-live span{white-space:normal!important;line-height:1.25!important}
-body.game-active #nball p,
-body.game-active #educ .edut,
-body.game-active #interaction-hint .itxt{
-  white-space:normal!important;
-  overflow-wrap:anywhere!important;
-}
-
-@media(max-width:900px){
-  body.game-active #mission-live{
-    top:92px!important;width:min(500px,66vw)!important;max-width:66vw!important
-  }
-  body.game-active #phase-badge{top:92px!important}
-  body.game-active #water-impact{top:92px!important}
-  body.game-active #nball,
-  body.game-active #interaction-hint,
-  body.game-active #jump-help,
-  body.game-active #educ{
-    bottom:108px!important;width:min(500px,78vw)!important;max-width:78vw!important
-  }
-}
-@media(max-width:600px){
-  body.game-active #mission-live{
-    top:88px!important;width:76vw!important;max-width:76vw!important
-  }
-  body.game-active #water-impact{display:none!important}
-  body.game-active #phase-badge{top:88px!important;font-size:.68rem!important}
-  body.game-active #nball,
-  body.game-active #interaction-hint,
-  body.game-active #jump-help,
-  body.game-active #educ{
-    bottom:100px!important;width:84vw!important;max-width:84vw!important
-  }
-  body.game-active #hh-v9-toast{top:145px!important;max-width:82vw!important}
-}
-</style>
-
-
 <style id="hh-v21-lower-ground-hints">
 /* V21 — textos auxiliares mais próximos do limite inferior da tela */
 body.game-active #nball,
@@ -5587,116 +5499,6 @@ window.HydroHeroFirebase={
 
 
 <script>
-/* ===== HYDROHERO 15 — AVANÇO DE FASE DEFINITIVO ===== */
-(function(){
-'use strict';
-
-function hh15StartPhase(phase){
-  const target=Math.max(1,Math.min(3,Number(phase)||1));
-  clearInterval(G.timerInt);
-  try{cancelAnimationFrame(animId);}catch(e){}
-
-  // Preserve profile and explicitly persist the target phase across every
-  // initLevel wrapper installed by previous versions.
-  const nick=G.nickname;
-  const character=G.playerCharacter;
-  G.phase=target;
-
-  initLevel();
-
-  G.phase=target;
-  if(nick)G.nickname=nick;
-  if(character)G.playerCharacter=character;
-
-  closeAllPW();
-  showGame();
-  gameRunning=true;
-  startTimer();
-  requestAnimationFrame(gameLoop);
-
-  const badge=document.getElementById('phase-badge');
-  if(badge){
-    badge.textContent=target===1?'FASE 1 • CIDADE':
-                      target===2?'FASE 2 • ESCOLA CONSCIENTE':
-                                 'FASE 3 • PROTEÇÃO AOS MANANCIAIS';
-  }
-
-  const sign=document.getElementById('phase-sign');
-  if(sign){
-    sign.style.display='block';
-    sign.textContent=target===1?'🏙️ CIDADE':
-                     target===2?'🏫 ESCOLA CONSCIENTE':
-                                '🌿 PROTEÇÃO AOS MANANCIAIS';
-  }
-
-  if(typeof showNPC==='function' && target>1){
-    showNPC(
-      `<strong>FASE ${target} INICIADA!</strong><br>${
-        target===2
-          ? 'Agora a missão acontece na escola e na comunidade.'
-          : 'Agora a missão segue para a natureza e os mananciais.'
-      }`,
-      false,2800
-    );
-  }
-}
-
-function hh15BindNext(){
-  const old=document.getElementById('bnextphase');
-  if(!old)return;
-
-  // Clone removes every previous click listener/property handler that may
-  // have been resetting the game to phase 1.
-  const b=old.cloneNode(true);
-  old.parentNode.replaceChild(b,old);
-
-  b.addEventListener('click',function(e){
-    e.preventDefault();
-    e.stopPropagation();
-
-    const current=Math.max(1,Math.min(3,Number(G.phase)||1));
-    if(current<3){
-      const next=current+1;
-      G.phase=next;
-      hh15StartPhase(next);
-    }else{
-      G.phase=1;
-      goHome();
-    }
-  },true);
-}
-
-// Rebind after every victory, because older code can alter the button.
-if(typeof doVictory==='function'){
-  const baseVictory15=doVictory;
-  doVictory=function(){
-    baseVictory15();
-    setTimeout(()=>{
-      hh15BindNext();
-      const b=document.getElementById('bnextphase');
-      if(b){
-        const current=Math.max(1,Math.min(3,Number(G.phase)||1));
-        b.style.display='inline-flex';
-        b.textContent=current<3
-          ? `➡️ INICIAR FASE ${current+1}`
-          : '🏆 CONCLUIR MISSÃO';
-      }
-    },0);
-  };
-}
-
-if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded',()=>setTimeout(hh15BindNext,150));
-}else{
-  setTimeout(hh15BindNext,150);
-}
-
-window.HydroHeroStartPhase=hh15StartPhase;
-})();
-</script>
-
-
-<script>
 /* ===== HYDROHERO 16 — FASES REALMENTE DIFERENTES ===== */
 (function(){
 'use strict';
@@ -5822,88 +5624,8 @@ function configure16(phase){
 }
 
 window.HydroHeroConfigurePhase=configure16;
+window.HH16Q_PUBLIC=HH16Q;
 
-// Replace phase starter installed by v15 so configuration is guaranteed.
-window.HydroHeroStartPhase=function(phase){
-  const target=Math.max(1,Math.min(3,Number(phase)||1));
-  clearInterval(G.timerInt);
-  try{cancelAnimationFrame(animId);}catch(e){}
-  const nick=G.nickname, character=G.playerCharacter;
-  G.phase=target;
-  initLevel();
-  G.phase=target;
-  if(nick)G.nickname=nick;
-  if(character)G.playerCharacter=character;
-  configure16(target);
-  closeAllPW();showGame();gameRunning=true;startTimer();requestAnimationFrame(gameLoop);
-  if(typeof showNPC==='function'&&target>1){
-    showNPC(target===2
-      ?'<strong>🏫 FASE 2 — ESCOLA CONSCIENTE</strong><br>Novo cenário escolar, novos desafios e perguntas sobre o uso consciente da água!'
-      :'<strong>🌿 FASE 3 — PROTEÇÃO AOS MANANCIAIS</strong><br>Agora a missão é proteger as fontes de água!',
-      false,3000);
-  }
-};
-
-// Final capture listener beats every old onclick handler.
-function bind16(){
-  const b=document.getElementById('bnextphase');if(!b)return;
-  b.addEventListener('click',function(e){
-    e.preventDefault();e.stopImmediatePropagation();
-    const current=Math.max(1,Math.min(3,Number(G.phase)||1));
-    if(current<3)window.HydroHeroStartPhase(current+1);
-    else{G.phase=1;goHome();}
-  },true);
-}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(bind16,300));
-else setTimeout(bind16,300);
-
-if(typeof doVictory==='function'){
-  const v16=doVictory;
-  doVictory=function(){
-    v16();
-    setTimeout(bind16,20);
-  };
-}
-})();
-</script>
-
-
-<script>
-/* ===== HYDROHERO 17 — FIREWALL DE PERGUNTAS POR FASE ===== */
-(function(){
-'use strict';
-
-function norm17(s){
-  return String(s||'').toLocaleLowerCase('pt-BR')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/[^a-z0-9]+/g,' ').trim();
-}
-
-function phaseTexts17(phase){
-  const bank=(window.HH16Q_PUBLIC||null);
-  const source=bank || (typeof HH16Q!=='undefined'?HH16Q:null);
-  if(!source || !source[phase])return new Set();
-  return new Set(source[phase].map(q=>norm17(q[1])));
-}
-
-// Export the final banks so the guard can access them even across script scopes.
-try{ window.HH16Q_PUBLIC=HH16Q; }catch(e){}
-
-if(typeof loadQuestion==='function'){
-  const baseLoad17=loadQuestion;
-  loadQuestion=function(q){
-    const phase=Math.max(1,Math.min(3,Number(G.phase)||1));
-    const allowed=phaseTexts17(phase);
-
-    if(!q || !allowed.has(norm17(q.text))){
-      // Legacy code tried to open a question from another phase.
-      // Replace it with one of the three questions currently assigned to this phase.
-      const idx=Math.max(0,Math.min(2,(G.questions||0)));
-      q=QUESTIONS[idx] || QUESTIONS[0];
-    }
-    return baseLoad17(q);
-  };
-}
 })();
 </script>
 
@@ -6937,7 +6659,7 @@ window.hhTryUnlockCape=function(target){
 if(typeof doVictory==='function'){
   const hh22BaseVictory=doVictory;
   doVictory=function(){
-    const completed=Math.max(1,Math.min(3,Number(G.phase)||1));
+    const completed=Math.max(1,Math.min(6,Number(G.phase)||1));
     const result=hh22BaseVictory();
     SAVE.completedPhase=Math.max(Number(SAVE.completedPhase)||0,completed);
     saveData();
@@ -7460,123 +7182,6 @@ if(typeof hh26BaseStart==='function'){
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(hh26LockInvalidCape,0));
 else setTimeout(hh26LockInvalidCape,0);
 window.HydroHeroValidateCape=hh26LockInvalidCape;
-})();
-</script>
-
-<script>
-/* ===== HYDROHERO 27 — CAMPANHA ÚNICA EM QUATRO FASES ===== */
-(function(){
-'use strict';
-const HH_PHASE_TOTAL=6;
-
-const HH27Q4=[
-  {cat:'TRATAMENTO',text:'Por que a água captada precisa passar por tratamento?',options:['Para ficar adequada ao abastecimento','Para aumentar o desperdício','Para mudar apenas sua cor'],correct:0,ok:'Correto! O tratamento protege a saúde da população.',err:'A água precisa ser tratada antes de chegar às pessoas.'},
-  {cat:'REDE DE ÁGUA',text:'Ao perceber um vazamento na rua, qual é a atitude correta?',options:['Comunicar à CESAN pelo 115 ou canais oficiais','Tentar quebrar o cano','Ignorar o desperdício'],correct:0,ok:'Muito bem! Informar rapidamente ajuda a reduzir perdas.',err:'Vazamentos na rede devem ser comunicados pelos canais oficiais.'},
-  {cat:'SANEAMENTO',text:'O saneamento contribui principalmente para:',options:['Saúde, qualidade de vida e proteção ambiental','Aumentar a poluição dos rios','Eliminar a necessidade de cuidar da água'],correct:0,ok:'Excelente! Saneamento também é saúde e proteção ambiental.',err:'O saneamento protege as pessoas e o ambiente.'}
-];
-
-function hh27ConfigurePhase4(){
-  G.phase=4;
-  QUESTIONS.splice(0,QUESTIONS.length,...HH27Q4.map(q=>({...q,options:q.options.slice()})));
-  G.questionSolved=[false,false,false];G.questions=0;
-
-  platforms=[
-    {x:0,y:GND,w:WW,h:90},
-    {x:420,y:GND-65,w:230,h:24},{x:920,y:GND-105,w:250,h:24},
-    {x:1450,y:GND-55,w:260,h:24},{x:1980,y:GND-95,w:260,h:24},
-    {x:2510,y:GND-60,w:280,h:24},{x:3070,y:GND-100,w:280,h:24},
-    {x:3650,y:GND-65,w:280,h:24}
-  ];
-  movPlats=[];
-  drops=[
-    new WaterDrop(260,GND-90,false),new WaterDrop(520,GND-125,false),
-    new WaterDrop(860,GND-95,false),new WaterDrop(1040,GND-165,true),
-    new WaterDrop(1510,GND-115,false),new WaterDrop(2040,GND-155,true),
-    new WaterDrop(2580,GND-120,false),new WaterDrop(3140,GND-160,false),
-    new WaterDrop(3710,GND-125,true),new WaterDrop(4070,GND-90,false)
-  ];
-  coins=[340,760,1260,1780,2310,2860,3440,3980].map(x=>new Coin(x,GND-48));
-  taps=[new Tap(720,GND-70,false),new Tap(2180,GND-70,true),new Tap(3520,GND-70,false)];
-  aylas=[
-    new AylaNPC(1160,GND-96,0,0,false),
-    new AylaNPC(2700,GND-96,1,1,false),
-    new AylaNPC(4020,GND-96,2,2,true)
-  ];
-  const mk=(x,i)=>{const v=new VillainNPC(x,GND-100,GASTAO_MSGS[i%GASTAO_MSGS.length]);v.ox=x;return v;};
-  villains=[mk(1650,0),mk(2980,1),mk(3890,2)];
-  streetLeak=new StreetLeak(980,GND-56);
-  bigLeak=new BigLeak(2460,GND-52);
-  houseLeak=new HouseLeak(3740,GND-112);
-  goalFlag=new GoalFlag(4380,GND-130);
-  G.timeLeft=240;
-
-  const badge=document.getElementById('phase-badge');
-  if(badge)badge.textContent='FASE 4 • BAIRRO CONSCIENTE';
-  const mission=document.querySelector('#mission-live span');
-  if(mission)mission.textContent='Proteja o sistema de abastecimento e conclua a missão final da CESAN.';
-  const sign=document.getElementById('phase-sign');
-  if(sign){sign.style.display='block';sign.textContent='🏘️ BAIRRO CONSCIENTE';}
-  updateHUD();
-}
-
-function hh27StartPhase(phase){
-  const target=Math.max(1,Math.min(HH_PHASE_TOTAL,Number(phase)||1));
-  clearInterval(G.timerInt);try{cancelAnimationFrame(animId);}catch(e){}
-  const nick=G.nickname,character=G.playerCharacter;
-  G.phase=target;initLevel();G.phase=target;
-  if(nick)G.nickname=nick;if(character)G.playerCharacter=character;
-
-  if(target<=3&&typeof window.HydroHeroConfigurePhase==='function'){
-    window.HydroHeroConfigurePhase(target);G.phase=target;
-  }else hh27ConfigurePhase4();
-
-  closeAllPW();showGame();gameRunning=true;startTimer();requestAnimationFrame(gameLoop);
-  const titles={
-    1:'🏙️ FASE 1 — CIDADE DAS ÁGUAS',
-    2:'🏫 FASE 2 — ESCOLA CONSCIENTE',
-    3:'🌿 FASE 3 — PROTEÇÃO AOS MANANCIAIS',
-    4:'🏘️ FASE 4 — BAIRRO CONSCIENTE'
-  };
-  if(typeof showNPC==='function')showNPC(`<strong>${titles[target]}</strong><br>${target===4?'Proteja o abastecimento e conclua a campanha!':'Complete todos os objetivos para avançar.'}`,false,3000);
-}
-
-function hh27BindNext(){
-  const old=document.getElementById('bnextphase');if(!old)return;
-  const b=old.cloneNode(true);old.parentNode.replaceChild(b,old);
-  const current=Math.max(1,Math.min(HH_PHASE_TOTAL,Number(G.phase)||1));
-  b.style.display='inline-flex';
-  b.textContent=current<HH_PHASE_TOTAL?`➡️ INICIAR FASE ${current+1}`:'🏆 CONCLUIR CAMPANHA';
-  b.addEventListener('click',e=>{
-    e.preventDefault();e.stopImmediatePropagation();
-    const phaseNow=Math.max(1,Math.min(HH_PHASE_TOTAL,Number(G.phase)||1));
-    if(phaseNow<HH_PHASE_TOTAL)hh27StartPhase(phaseNow+1);
-    else{G.phase=1;goHome();}
-  },true);
-}
-
-window.HydroHeroStartPhase=hh27StartPhase;
-window.HydroHeroTotalPhases=HH_PHASE_TOTAL;
-
-const hh27BaseVictory=doVictory;
-doVictory=function(){
-  const completed=Math.max(1,Math.min(HH_PHASE_TOTAL,Number(G.phase)||1));
-  const result=hh27BaseVictory();G.phase=completed;
-  setTimeout(()=>{
-    G.phase=completed;
-    if(typeof window.HydroHeroRefreshCampaignUI==='function')window.HydroHeroRefreshCampaignUI();
-    else hh27BindNext();
-  },50);
-  return result;
-};
-
-const vic=document.getElementById('pw-vic');
-if(vic&&typeof MutationObserver!=='undefined'){
-  new MutationObserver(()=>{if(!vic.classList.contains('off'))setTimeout(hh27BindNext,0);})
-    .observe(vic,{attributes:true,attributeFilter:['class']});
-}
-
-const play=document.getElementById('btn-play');
-if(play)play.onclick=()=>hh27StartPhase(1);
 })();
 </script>
 
@@ -12771,5 +12376,144 @@ console.info('[HydroHero V78] Voltar interno e do navegador -> Home.');
 })();
 </script>
 
+
+
+<!-- ===== HYDROHERO V79 — LAYOUT DE MENSAGENS SEM SOBREPOSIÇÃO ===== -->
+<style id="hh-v79-message-layout-fix">
+/* Layout consolidado: substitui regras antigas conflitantes de HUD/mensagens. */
+body.game-active #phase-sign{display:none!important}
+body.game-active #hh-v9-toast{top:230px!important;bottom:auto!important;max-width:min(520px,70vw)!important;z-index:60!important}
+
+/* Cada aviso ocupa sua própria faixa. Regras finais para vencer patches antigos. */
+body.game-active #phase-badge,
+body.game-active #mission-live,
+body.game-active #water-impact,
+body.game-active #interaction-hint,
+body.game-active #nball,
+body.game-active #educ,
+body.game-active #jump-help{
+  box-sizing:border-box!important;
+}
+
+/* Desktop/tablet: status superiores separados em 3 zonas. */
+body.game-active #phase-badge{
+  top:82px!important;left:12px!important;right:auto!important;
+  max-width:22vw!important;z-index:52!important;
+}
+body.game-active #mission-live{
+  top:82px!important;left:50%!important;right:auto!important;
+  transform:translateX(-50%)!important;
+  width:min(520px,48vw)!important;max-width:48vw!important;z-index:51!important;
+}
+body.game-active #water-impact{
+  top:82px!important;right:12px!important;left:auto!important;
+  max-width:22vw!important;z-index:52!important;
+}
+
+/* Mensagens inferiores: cada tipo recebe uma faixa própria. */
+body.game-active #interaction-hint{
+  left:50%!important;bottom:92px!important;top:auto!important;
+  transform:translateX(-50%)!important;width:min(520px,72vw)!important;max-width:72vw!important;z-index:58!important;
+}
+body.game-active #nball{
+  left:50%!important;bottom:164px!important;top:auto!important;
+  transform:translateX(-50%)!important;width:min(520px,72vw)!important;max-width:72vw!important;z-index:59!important;
+}
+body.game-active #educ{
+  left:50%!important;bottom:238px!important;top:auto!important;
+  transform:translateX(-50%)!important;width:min(460px,68vw)!important;max-width:68vw!important;z-index:57!important;
+}
+body.game-active #jump-help{
+  left:50%!important;bottom:310px!important;top:auto!important;
+  transform:translateX(-50%)!important;width:auto!important;max-width:62vw!important;z-index:56!important;
+}
+
+/* Celular: cria uma pequena central de status abaixo do HUD. */
+@media (max-width:600px){
+  body.game-active #phase-badge{
+    top:118px!important;left:10px!important;right:auto!important;
+    max-width:42vw!important;padding:6px 9px!important;font-size:.66rem!important;
+    white-space:normal!important;line-height:1.12!important;
+  }
+  body.game-active #water-impact{
+    display:block!important;top:118px!important;right:10px!important;left:auto!important;
+    max-width:46vw!important;min-width:0!important;padding:6px 9px!important;
+    text-align:right!important;
+  }
+  body.game-active #water-impact small{font-size:.48rem!important;line-height:1.05!important}
+  body.game-active #water-impact b{font-size:1.05rem!important;line-height:1!important}
+
+  body.game-active #mission-live{
+    top:166px!important;left:50%!important;right:auto!important;
+    transform:translateX(-50%)!important;
+    width:calc(100vw - 20px)!important;max-width:calc(100vw - 20px)!important;
+    min-height:58px!important;padding:8px 12px!important;
+    align-items:flex-start!important;gap:9px!important;
+  }
+  body.game-active #mission-live strong{
+    display:block!important;font-size:.76rem!important;line-height:1.05!important;margin-bottom:2px!important;
+  }
+  body.game-active #mission-live span{
+    display:block!important;font-size:.61rem!important;line-height:1.25!important;
+    white-space:normal!important;overflow-wrap:break-word!important;
+  }
+
+  /* Rodapé: ação primeiro; falas/dicas sobem para faixas independentes. */
+  body.game-active #interaction-hint{
+    bottom:92px!important;width:calc(100vw - 22px)!important;max-width:calc(100vw - 22px)!important;
+    padding:9px 11px!important;gap:9px!important;
+  }
+  body.game-active #interaction-hint .ikey{min-width:54px!important;height:40px!important}
+  body.game-active #interaction-hint .itxt{font-size:.68rem!important;line-height:1.22!important}
+  body.game-active #interaction-hint .itxt strong{font-size:.88rem!important;line-height:1.05!important}
+
+  body.game-active #nball{
+    bottom:170px!important;width:calc(100vw - 28px)!important;max-width:calc(100vw - 28px)!important;
+    padding:8px 11px!important;
+  }
+  body.game-active #nball p{font-size:.72rem!important;line-height:1.3!important}
+
+  body.game-active #educ{
+    bottom:246px!important;width:calc(100vw - 42px)!important;max-width:calc(100vw - 42px)!important;
+    padding:8px 11px!important;
+  }
+  body.game-active #educ .edut{font-size:.68rem!important;line-height:1.3!important}
+
+  body.game-active #jump-help{
+    bottom:320px!important;max-width:76vw!important;padding:6px 10px!important;font-size:.66rem!important;
+  }
+
+  /* Barras HP/energia não disputam a faixa da mensagem de ação. */
+  body.game-active #sbars{bottom:174px!important;left:7px!important;transform:scale(.72)!important;transform-origin:bottom left!important}
+  body.game-active #minimap{display:none!important}
+}
+
+/* Telefones estreitos: mais espaço horizontal e textos ainda legíveis. */
+@media (max-width:390px){
+  body.game-active #phase-badge{max-width:40vw!important;font-size:.61rem!important}
+  body.game-active #water-impact{max-width:48vw!important}
+  body.game-active #mission-live{top:164px!important;min-height:62px!important}
+  body.game-active #interaction-hint{bottom:88px!important}
+  body.game-active #nball{bottom:166px!important}
+  body.game-active #educ{bottom:242px!important}
+}
+</style>
+
+<script id="hh-clean-6phase-guard">
+/* ===== HYDROHERO CLEAN — INVARIANTES DA CAMPANHA DE 6 FASES =====
+   Controlador oficial: HydroHero 28.
+   HydroHero 16 permanece apenas como configurador das fases-base 1 e 2.
+   Navegadores legados de 3/4 fases foram removidos para evitar regressões. */
+(function(){
+  'use strict';
+  const TOTAL=6;
+  window.HydroHeroTotalPhases=TOTAL;
+  // Corrige apenas valores impossíveis sem interferir no fluxo normal da fase atual.
+  if(typeof G!=='undefined' && G && G.phase!=null){
+    const p=Number(G.phase);
+    if(!Number.isFinite(p) || p<1 || p>TOTAL) G.phase=1;
+  }
+})();
+</script>
 </body>
 </html>
