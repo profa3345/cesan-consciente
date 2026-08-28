@@ -1482,7 +1482,7 @@ body.hh-v45-home-active #menu-music-toggle{
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="HydroHero">
-<meta name="hydrohero-build" content="78">
+<meta name="hydrohero-build" content="79">
 <link rel="manifest" href="/manifest.webmanifest">
 <style id="hh-v62-mobile-final">
 /* V62 — orientação, toque e PWA */
@@ -1812,6 +1812,171 @@ body.game-active #hh-install-app-v73{display:none!important}
   }
 }
 </style>
+
+
+<style id="hh-v79-mobile-home-canonical-fix">
+/* V79 — mantém a Home nova V45 visível no mobile */
+
+html.hh62-mobile #v-home #hh-v45-home-art,
+html.hh62-landscape #v-home #hh-v45-home-art,
+html.hh-v61-mobile #v-home #hh-v45-home-art,
+html.hh-v61-landscape #v-home #hh-v45-home-art,
+html.hh-v59-mobile #v-home #hh-v45-home-art,
+html.hh-v64-mobile #v-home #hh-v45-home-art,
+#v-home:not(.off) #hh-v45-home-art{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  pointer-events:auto!important;
+}
+
+#v-home .hwrap,
+#v-home .cstrip{
+  display:none!important;
+}
+
+@media (max-width:900px) and (orientation:portrait){
+  #v-home{
+    position:fixed!important;
+    inset:0!important;
+    width:100vw!important;
+    height:100dvh!important;
+    min-height:100dvh!important;
+    max-height:100dvh!important;
+    overflow:hidden!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    background:#03182d!important;
+  }
+
+  #hh-v45-home-art{
+    display:block!important;
+    position:absolute!important;
+    left:50%!important;
+    top:50%!important;
+    right:auto!important;
+    bottom:auto!important;
+    transform:translate(-50%,-50%)!important;
+    width:min(100vw,calc(100dvh * 1.3333333333))!important;
+    height:min(100dvh,75vw)!important;
+    max-width:100vw!important;
+    max-height:100dvh!important;
+    aspect-ratio:4/3!important;
+    margin:0!important;
+    overflow:hidden!important;
+    z-index:50!important;
+  }
+
+  #hh-v45-home-bg{
+    display:block!important;
+    position:absolute!important;
+    inset:0!important;
+    width:100%!important;
+    height:100%!important;
+    object-fit:fill!important;
+    visibility:visible!important;
+    opacity:1!important;
+  }
+
+  #hh-v45-home-art .hh-v45-hotspot{
+    display:block!important;
+    visibility:visible!important;
+    pointer-events:auto!important;
+    z-index:60!important;
+  }
+}
+
+@media (max-width:1100px) and (orientation:landscape){
+  #v-home{
+    position:fixed!important;
+    inset:0!important;
+    width:100vw!important;
+    height:100dvh!important;
+    min-height:100dvh!important;
+    max-height:100dvh!important;
+    overflow:hidden!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    background:#03182d!important;
+  }
+
+  #hh-v45-home-art{
+    display:block!important;
+    position:absolute!important;
+    left:50%!important;
+    top:50%!important;
+    right:auto!important;
+    bottom:auto!important;
+    transform:translate(-50%,-50%)!important;
+    width:min(100vw,calc(100dvh * 1.3333333333))!important;
+    height:min(100dvh,75vw)!important;
+    max-width:100vw!important;
+    max-height:100dvh!important;
+    aspect-ratio:4/3!important;
+    margin:0!important;
+    overflow:hidden!important;
+    z-index:50!important;
+  }
+
+  #hh-v45-home-bg{
+    display:block!important;
+    width:100%!important;
+    height:100%!important;
+    object-fit:fill!important;
+  }
+
+  #hh-v45-home-art .hh-v45-hotspot{
+    display:block!important;
+    pointer-events:auto!important;
+    z-index:60!important;
+  }
+}
+</style>
+
+<script id="hh-v79-mobile-home-runtime">
+(function(){
+'use strict';
+
+function forceHomeVisible(){
+  const home=document.getElementById('v-home');
+  const art=document.getElementById('hh-v45-home-art');
+  const bg=document.getElementById('hh-v45-home-bg');
+  if(!home || !art) return;
+
+  if(!home.classList.contains('off')){
+    art.style.setProperty('display','block','important');
+    art.style.setProperty('visibility','visible','important');
+    art.style.setProperty('opacity','1','important');
+
+    if(bg){
+      bg.style.setProperty('display','block','important');
+      bg.style.setProperty('visibility','visible','important');
+      bg.style.setProperty('opacity','1','important');
+    }
+  }
+}
+
+function refresh(){
+  forceHomeVisible();
+  requestAnimationFrame(forceHomeVisible);
+  setTimeout(forceHomeVisible,120);
+}
+
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',refresh,{once:true});
+}else{
+  refresh();
+}
+
+window.addEventListener('resize',refresh,{passive:true});
+window.addEventListener('orientationchange',()=>setTimeout(refresh,120),{passive:true});
+if(window.visualViewport){
+  visualViewport.addEventListener('resize',refresh,{passive:true});
+}
+})();
+</script>
 
 </head>
 <body>
